@@ -957,17 +957,35 @@ def verify_credentials(username: str, password: str) -> bool:
     return bool(user_ok and pass_ok)
 
 
+def render_lakshmi_mantra_header() -> None:
+    """Renders the auspicious Lakshmi Mantra caption and bordered Lakshmi Beej Mantra & Trading Greeting box."""
+    st.caption("✨ *ॐ श्रीं महालक्ष्म्यै नमः (Om Shreem Mahalakshmyai Namah)* | Institutional High-Conviction Engine")
+    with st.container(border=True):
+        st.caption(
+            "🌱 **Lakshmi Beej Mantra (Growth & Seed Capital):** *ॐ श्रीं ह्रीं श्रीं कमले कमलालये प्रसीद प्रसीद श्रीं ह्रीं श्रीं महालक्ष्म्यै नमः (Om Shreem Hreem Shreem Kamale Kamalalaye Praseeda Praseeda Shreem Hreem Shreem Mahalakshmyai Namah)*\n\n"
+            "🌸 **Auspicious Trading Greeting:** *ॐ शुभ लाभाय नमः (Om Shubha Labhāya Namah)* — Salutations to auspiciousness and profit (*Labh*)."
+        )
+
+
 def render_login_page() -> None:
     """Renders the centered login screen asking for Username (Admin) and Password (Aether@)."""
+    with st.sidebar:
+        st.markdown("### 🏛️ Aethera MasterRep")
+        render_lakshmi_mantra_header()
+        st.markdown("**👤 Access:** `🔒 Private / Login Required`")
+        st.caption("Authenticate to access all Aethera repositories, live Streamlit apps, health probes, and cron schedules.")
+
     st.markdown(
         '<div class="mantra-banner">'
-        "✨ ॐ श्रीं महालक्ष्म्यै नमः • ॐ शुभ लाभाय नमः • Aethera Systems Core Quantitative Ecosystem ✨"
+        "✨ ॐ श्रीं महालक्ष्म्यै नमः (Om Shreem Mahalakshmyai Namah) | Institutional High-Conviction Engine ✨"
         "</div>",
         unsafe_allow_html=True,
     )
 
-    _, center_col, _ = st.columns([1.1, 1.6, 1.1])
+    _, center_col, _ = st.columns([1.0, 1.8, 1.0])
     with center_col:
+        render_lakshmi_mantra_header()
+
         st.markdown(
             """
             <div class="login-card">
@@ -1033,7 +1051,7 @@ def render_master_dashboard() -> None:
     # Top Auspicious Banner
     st.markdown(
         '<div class="mantra-banner">'
-        "✨ ॐ श्रीं महालक्ष्म्यै नमः • ॐ शुभ लाभाय नमः • Empowering Disciplined Quantitative Wealth Creation ✨"
+        "✨ ॐ श्रीं महालक्ष्म्यै नमः (Om Shreem Mahalakshmyai Namah) | Institutional High-Conviction Engine ✨"
         "</div>",
         unsafe_allow_html=True,
     )
@@ -1041,6 +1059,7 @@ def render_master_dashboard() -> None:
     # Sidebar Controls, Live CPU/RAM Telemetry & Session Info
     with st.sidebar:
         st.markdown("### 🏛️ Master Command Hub")
+        render_lakshmi_mantra_header()
         st.success(f"👤 **User:** `{st.session_state.get('auth_user', MASTER_USERNAME)}` (Verified)")
         st.caption(f"🕒 **Login Time:** {st.session_state.get('login_time_ist', now_ist)}")
         st.caption(f"🌐 **Current Time:** {now_ist}")
@@ -1112,10 +1131,10 @@ def render_master_dashboard() -> None:
     head_left, head_right = st.columns([3.3, 1.3])
     with head_left:
         st.title("🏛️ Aethera Systems Core — Master Repository & Health Hub")
-        st.markdown(
-            "Authenticated command center for all **Aethera Systems Core** repositories: "
-            "**GitHub & Streamlit App links**, **Live Liveness Probes (`/_stcore/health`)**, "
-            "**CPU / RAM Resource Telemetry**, **Commit & App Blocker Forensics**, and **External Cron (`cron-job.org`)**."
+        st.caption(
+            "✨ *ॐ श्रीं महालक्ष्म्यै नमः (Om Shreem Mahalakshmyai Namah)* | Institutional High-Conviction Engine • "
+            "Master Command Center for GitHub Repositories, Live Streamlit Apps, Liveness Probes (`/_stcore/health`), "
+            "CPU/RAM Telemetry & Commit Blocker Forensics"
         )
     with head_right:
         st.write("")
@@ -1129,6 +1148,12 @@ def render_master_dashboard() -> None:
             probe_all_apps_health.clear()
             fetch_all_repos_git_forensics.clear()
             st.rerun()
+
+    with st.container(border=True):
+        st.caption(
+            "🌱 **Lakshmi Beej Mantra (Growth & Seed Capital):** *ॐ श्रीं ह्रीं श्रीं कमले कमलालये प्रसीद प्रसीद श्रीं ह्रीं श्रीं महालक्ष्म्यै नमः (Om Shreem Hreem Shreem Kamale Kamalalaye Praseeda Praseeda Shreem Hreem Shreem Mahalakshmyai Namah)*  \n"
+            "🌸 **Auspicious Trading Greeting:** *ॐ शुभ लाभाय नमः (Om Shubha Labhāya Namah)* — Salutations to auspiciousness and profit (*Labh*)."
+        )
 
     # Summary KPI Strip
     online_count = sum(1 for r in REPOSITORIES if health_map.get(r["slug"], {}).get("healthy", False))
