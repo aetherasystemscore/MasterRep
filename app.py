@@ -1,5 +1,5 @@
 """
-Aethera Systems Core — Master Repository & Live Application Hub (Aethersystem / MasterRep)
+Aethera Systems Core — Master Repository & Live Application Hub (MasterRep)
 Authenticated gateway listing all Aethera Systems Core GitHub repositories,
 brief explanations, live Streamlit Cloud deployments, and external Cron scheduler links.
 """
@@ -35,7 +35,6 @@ MASTER_PASSWORD = "Aether@"
 # EXTERNAL CRON & MASTER REPOSITORY LINKS
 # =====================================================================
 EXTERNAL_CRON_URL = "https://cron-job.org/en/"
-MASTER_GITHUB_REPO_AETHERSYSTEM = "https://github.com/aetherasystemscore/Aethersystem"
 MASTER_GITHUB_REPO_MASTERREP = "https://github.com/aetherasystemscore/MasterRep"
 
 # =====================================================================
@@ -397,12 +396,7 @@ def render_master_dashboard() -> None:
         st.caption(f"Direct Link: [{EXTERNAL_CRON_URL}]({EXTERNAL_CRON_URL})")
 
         st.divider()
-        st.markdown("### 🗂️ Master Repository Links")
-        st.link_button(
-            "🐙 GitHub: Aethersystem",
-            MASTER_GITHUB_REPO_AETHERSYSTEM,
-            use_container_width=True,
-        )
+        st.markdown("### 🗂️ Master Repository Link")
         st.link_button(
             "🐙 GitHub: MasterRep",
             MASTER_GITHUB_REPO_MASTERREP,
@@ -433,9 +427,9 @@ def render_master_dashboard() -> None:
     # KPI Metric Strip
     k1, k2, k3, k4 = st.columns(4)
     k1.metric("Production Repositories", f"{len(REPOSITORIES)} Core Apps", "GitHub + Streamlit")
-    k2.metric("Master Gateway Repos", "Aethersystem / MasterRep", "Authenticated Hub")
+    k2.metric("Master Gateway Repo", "MasterRep", "Authenticated Hub")
     k3.metric("External Cron Engine", "cron-job.org", "24x7 Scheduled Wake & Sync")
-    k4.metric("Session Status", f"AdminVerified", now_ist.split("•")[-1].strip())
+    k4.metric("Session Status", "Admin Verified", now_ist.split("•")[-1].strip())
 
     st.divider()
 
@@ -463,7 +457,7 @@ def render_master_dashboard() -> None:
         unsafe_allow_html=True,
     )
 
-    c_btn1, c_btn2, c_btn3 = st.columns([1.4, 1.3, 1.3])
+    c_btn1, c_btn2 = st.columns(2)
     with c_btn1:
         st.link_button(
             "⏰ Open External Cron (https://cron-job.org/en/)",
@@ -473,13 +467,7 @@ def render_master_dashboard() -> None:
         )
     with c_btn2:
         st.link_button(
-            "🐙 Master Git Repo (Aethersystem)",
-            MASTER_GITHUB_REPO_AETHERSYSTEM,
-            use_container_width=True,
-        )
-    with c_btn3:
-        st.link_button(
-            "🐙 Master Git Repo (MasterRep)",
+            "🐙 Open Master Git Repo (https://github.com/aetherasystemscore/MasterRep)",
             MASTER_GITHUB_REPO_MASTERREP,
             use_container_width=True,
         )
@@ -581,13 +569,13 @@ def render_master_dashboard() -> None:
         table_rows.append(
             {
                 "#": 6,
-                "Repository Name": "🏛️ Master Repository Hub (Aethersystem / MasterRep)",
+                "Repository Name": "🏛️ Master Repository Hub (MasterRep)",
                 "Category": "Master Gateway & Authentication Hub",
                 "Brief Explanation": (
                     "Central authenticated gateway (Admin / Aether@) listing all Aethera Systems Core "
                     "GitHub repositories, brief explanations, live Streamlit app deployments, and external cron automation."
                 ),
-                "Git Repository Link": MASTER_GITHUB_REPO_AETHERSYSTEM,
+                "Git Repository Link": MASTER_GITHUB_REPO_MASTERREP,
                 "Streamlit App Link": MASTER_GITHUB_REPO_MASTERREP,
             }
         )
@@ -638,7 +626,7 @@ def render_master_dashboard() -> None:
             st.markdown("#### 🐙 All GitHub Repository URLs")
             git_urls_text = "\n".join(
                 [r["git_url"] for r in REPOSITORIES]
-                + [MASTER_GITHUB_REPO_AETHERSYSTEM, MASTER_GITHUB_REPO_MASTERREP]
+                + [MASTER_GITHUB_REPO_MASTERREP]
             )
             st.code(git_urls_text, language="text")
 

@@ -1,8 +1,8 @@
-# 🏛️ Aethera Systems Core — Master Repository & Live App Hub (`Aethersystem` / `MasterRep`)
+# 🏛️ Aethera Systems Core — Master Repository & Live App Hub (`MasterRep`)
 
 > ✨ **ॐ श्रीं महालक्ष्म्यै नमः • ॐ शुभ लाभाय नमः** — *Empowering disciplined quantitative wealth creation.*
 
-Central authenticated Master Command Portal for **Aethera Systems Core**. Upon login (`User Name: Admin`, `Password: Aether@`), this application displays all Aethera Systems Core repositories with a brief architectural explanation, direct **GitHub Repository links**, **Live Streamlit App links**, and **External Cron Automation (`cron-job.org`)**.
+Central authenticated Master Command Portal for **Aethera Systems Core** ([https://github.com/aetherasystemscore/MasterRep](https://github.com/aetherasystemscore/MasterRep)). Upon login (`User Name: Admin`, `Password: Aether@`), this application displays all Aethera Systems Core repositories with a brief architectural explanation, direct **GitHub Repository links**, **Live Streamlit App links**, and **External Cron Automation (`cron-job.org`)**.
 
 ---
 
@@ -25,12 +25,10 @@ Central authenticated Master Command Portal for **Aethera Systems Core**. Upon l
 
 ---
 
-## ⏰ External Cron Automation
+## ⏰ External Cron Automation & Master Repository
 
 - **External Cron Scheduler:** [https://cron-job.org/en/](https://cron-job.org/en/)
-- **Master GitHub Repositories:**
-  - [https://github.com/aetherasystemscore/Aethersystem](https://github.com/aetherasystemscore/Aethersystem)
-  - [https://github.com/aetherasystemscore/MasterRep](https://github.com/aetherasystemscore/MasterRep)
+- **Master GitHub Repository:** [https://github.com/aetherasystemscore/MasterRep](https://github.com/aetherasystemscore/MasterRep)
 
 ---
 
