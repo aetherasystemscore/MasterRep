@@ -45,6 +45,17 @@ Concurrently probes all 5 deployed Streamlit Cloud applications across three net
   - **Dependency Build Blockers:** Documents native wheel compilation fixes (e.g., removing `scipy` in `NCD-Bond_Screener`).
 - **🔄 1-Click Remote Container Reboot Trigger:** Can commit a timestamp to `.streamlit_reboot` via the GitHub Contents API (when `GITHUB_TOKEN` is provided) to force a clean container restart on any app.
 
+### 4. 🤖 Open Interpreter — Autonomous Repo Audit, Backtest & Future Optimization Studio (Tab 5)
+Integrates an **Open Interpreter Autonomous Quant & Code Execution Studio** supporting both the **native `open-interpreter` SDK**, multi-LLM providers (**OpenAI `gpt-4o`**, **Google Gemini `gemini-2.5-pro`**, **Anthropic Claude**, **Groq**), and a **Zero-Key Built-In Autonomous Quant Kernel**:
+1. **🔍 Codebase & AST Architecture Audit (`run_oi_repo_audit`)**:
+   - Inspects live source code (`app.py`, `requirements.txt`) from any of the 5 Aethera repositories, scoring **1GB Cloud Memory Safety**, **Caching & I/O Efficiency (`@st.cache_data`)**, **AST Exception Hygiene**, and generating a downloadable Python optimization patch.
+2. **📈 Live Quantitative Strategy Backtest Lab (`run_oi_backtest`)**:
+   - Runs vectorized backtests across each repository's asset universe (`yfinance` live feed + calibrated fallback) for 4 institutional strategy archetypes (**EMA Crossover + RSI Regime**, **Cross-Sectional Momentum Top-N Rotation**, **Institutional Volume & Breakout Trend Follower**, **Mean-Reversion Bollinger + Dip Buyer**), outputting **CAGR, Sharpe, Sortino, Max Drawdown, Calmar, Win Rate, Profit Factor, Equity/Drawdown Charts, and Per-Ticker Live Signals**.
+3. **⚡ Future Walk-Forward Parameter & Portfolio Optimization (`run_oi_future_optimization`)**:
+   - Performs **70/30 In-Sample / Out-of-Sample Walk-Forward Grid Search** to discover non-overfit strategy parameters, and solves **Forward Institutional Portfolio Allocations** (**Equal Weight**, **Inverse-Volatility Risk Parity**, **Minimum Volatility**, and **Maximum Sharpe Tangency**), plus a repo-specific engineering & alpha roadmap.
+4. **💬 Interactive Open Interpreter Agent & Live Python Sandbox REPL (`run_oi_agent_prompt` & `execute_oi_python_sandbox`)**:
+   - Execute natural-language audit/backtest/optimization prompts or custom Python code directly against `repo`, `audit_res`, `bt_res`, `opt_res`, `pd`, `np`, and `yf`.
+
 ---
 
 ## 📦 Registered Repositories & Live Streamlit Apps
