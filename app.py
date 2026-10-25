@@ -373,108 +373,220 @@ REPOSITORIES = [
 
 
 # =====================================================================
-# CUSTOM STYLING
+# CUSTOM STYLING (LIGHT GREY & WHITE THEME — HIGH-CONTRAST VISIBILITY)
 # =====================================================================
 def inject_custom_css() -> None:
     st.markdown(
         """
         <style>
+        /* Main App & Background — Light Grey / White */
+        .stApp, [data-testid="stAppViewContainer"], .main {
+            background-color: #f8fafc !important;
+            color: #0f172a !important;
+        }
+        header[data-testid="stHeader"] {
+            background-color: rgba(248, 250, 252, 0.95) !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+        }
+        [data-testid="stSidebar"] {
+            background-color: #f1f5f9 !important;
+            border-right: 1px solid #cbd5e1 !important;
+            color: #0f172a !important;
+        }
+        /* Prevent top header clipping — generous top padding so top text is 100% visible */
         .block-container {
-            padding-top: 1.3rem;
-            padding-bottom: 2.5rem;
+            padding-top: 3.8rem !important;
+            padding-bottom: 2.5rem !important;
             max-width: 1440px;
         }
-        .mantra-banner {
-            background: linear-gradient(90deg, rgba(30,58,138,0.45) 0%, rgba(15,23,42,0.85) 50%, rgba(30,58,138,0.45) 100%);
-            border: 1px solid rgba(251, 191, 36, 0.35);
-            border-radius: 10px;
-            padding: 0.45rem 1rem;
-            text-align: center;
-            color: #fde68a;
-            font-size: 0.92rem;
-            font-weight: 600;
-            letter-spacing: 0.3px;
-            margin-bottom: 1rem;
+        /* High-Contrast Typography across all sections */
+        h1, h2, h3, h4, h5, h6 {
+            color: #0f172a !important;
+            font-weight: 700 !important;
         }
+        p, li, label, [data-testid="stMarkdownContainer"] {
+            color: #1e293b !important;
+        }
+        [data-testid="stCaptionContainer"], .stCaption {
+            color: #334155 !important;
+            font-size: 0.92rem !important;
+            opacity: 1 !important;
+        }
+        [data-testid="stMetricLabel"] {
+            color: #334155 !important;
+            font-weight: 600 !important;
+        }
+        [data-testid="stMetricValue"] {
+            color: #0f172a !important;
+            font-weight: 700 !important;
+        }
+        /* Forms, Inputs, Selectboxes, Expanders & Tabs — Light Grey / White Backgrounds & Dark Text */
+        [data-testid="stForm"], [data-testid="stExpander"], details {
+            background-color: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 12px !important;
+            color: #0f172a !important;
+        }
+        input, textarea, [data-baseweb="input"], [data-baseweb="base-input"], [data-baseweb="select"] > div {
+            background-color: #ffffff !important;
+            color: #0f172a !important;
+            border-color: #94a3b8 !important;
+        }
+        [data-baseweb="tab-list"] {
+            background-color: #f1f5f9 !important;
+            border-radius: 10px !important;
+            padding: 0.25rem 0.5rem !important;
+            border: 1px solid #cbd5e1 !important;
+        }
+        [data-baseweb="tab"] {
+            color: #334155 !important;
+            font-weight: 600 !important;
+        }
+        [data-baseweb="tab"][aria-selected="true"] {
+            color: #1d4ed8 !important;
+            font-weight: 700 !important;
+            background-color: #ffffff !important;
+            border-radius: 8px !important;
+        }
+        pre, code, [data-testid="stCodeBlock"] {
+            background-color: #f1f5f9 !important;
+            color: #0f172a !important;
+        }
+        /* Top Mantra Banner — Warm Ivory/Light Gold with High-Contrast Dark Text */
+        .mantra-banner {
+            background: linear-gradient(90deg, #fef3c7 0%, #fffbeb 50%, #fef3c7 100%);
+            border: 1.5px solid #f59e0b;
+            border-radius: 10px;
+            padding: 0.65rem 1.1rem;
+            text-align: center;
+            color: #78350f !important;
+            font-size: 0.98rem;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+            margin-top: 0.25rem;
+            margin-bottom: 0.85rem;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+        }
+        .mantra-subbox {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-left: 4px solid #d97706;
+            border-radius: 10px;
+            padding: 0.75rem 1.1rem;
+            margin-bottom: 1rem;
+            color: #0f172a !important;
+            font-size: 0.92rem;
+            line-height: 1.55;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+        }
+        /* Cards & Containers — White / Light Grey with Crisp Borders */
         .login-card {
-            background: linear-gradient(145deg, #111827 0%, #0f172a 100%);
-            border: 1px solid rgba(56, 189, 248, 0.35);
+            background: linear-gradient(145deg, #ffffff 0%, #f1f5f9 100%);
+            border: 1.5px solid #94a3b8;
             border-radius: 16px;
-            padding: 2rem 2.2rem;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
-            margin-top: 1.5rem;
+            padding: 1.75rem 2rem;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+            margin-top: 0.75rem;
+            margin-bottom: 1rem;
+            color: #0f172a !important;
         }
         .repo-card {
-            background: linear-gradient(145deg, #111827 0%, #0f172a 100%);
-            border: 1px solid rgba(148, 163, 184, 0.22);
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
             border-radius: 14px;
             padding: 1.25rem 1.45rem;
             margin-bottom: 0.9rem;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+            color: #0f172a !important;
         }
         .telemetry-card {
-            background: linear-gradient(145deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.75) 100%);
-            border: 1px solid rgba(56, 189, 248, 0.3);
+            background: #f1f5f9;
+            border: 1px solid #94a3b8;
             border-radius: 12px;
             padding: 1rem 1.25rem;
             margin-bottom: 1rem;
+            color: #0f172a !important;
         }
         .cron-card {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.14) 0%, rgba(15, 23, 42, 0.95) 100%);
-            border: 1px solid rgba(16, 185, 129, 0.45);
+            background: linear-gradient(135deg, #ecfdf5 0%, #f8fafc 100%);
+            border: 1.5px solid #10b981;
             border-radius: 14px;
             padding: 1.15rem 1.45rem;
             margin-bottom: 1.2rem;
+            color: #0f172a !important;
         }
+        /* Badges & Pills — Light Backgrounds with Dark High-Contrast Text */
         .category-pill {
+            display: inline-block;
+            padding: 0.22rem 0.7rem;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            background: #e0f2fe;
+            color: #0369a1 !important;
+            border: 1px solid #7dd3fc;
+            margin-bottom: 0.4rem;
+        }
+        .vis-private {
             display: inline-block;
             padding: 0.2rem 0.65rem;
             border-radius: 999px;
-            font-size: 0.76rem;
-            font-weight: 600;
-            background: rgba(56, 189, 248, 0.14);
-            color: #7dd3fc;
-            border: 1px solid rgba(56, 189, 248, 0.3);
+            font-size: 0.78rem;
+            font-weight: 700;
+            background: #fae8ff;
+            color: #7e22ce !important;
+            border: 1px solid #d8b4fe;
+            margin-bottom: 0.4rem;
+        }
+        .vis-public {
+            display: inline-block;
+            padding: 0.2rem 0.65rem;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            background: #dcfce7;
+            color: #15803d !important;
+            border: 1px solid #86efac;
             margin-bottom: 0.4rem;
         }
         .badge-ok {
             display: inline-block;
-            padding: 0.18rem 0.6rem;
+            padding: 0.2rem 0.65rem;
             border-radius: 6px;
-            font-size: 0.78rem;
-            font-weight: 600;
-            background: rgba(16, 185, 129, 0.18);
-            color: #6ee7b7;
-            border: 1px solid rgba(16, 185, 129, 0.4);
+            font-size: 0.8rem;
+            font-weight: 700;
+            background: #dcfce7;
+            color: #065f46 !important;
+            border: 1px solid #6ee7b7;
         }
         .badge-warn {
             display: inline-block;
-            padding: 0.18rem 0.6rem;
+            padding: 0.2rem 0.65rem;
             border-radius: 6px;
-            font-size: 0.78rem;
-            font-weight: 600;
-            background: rgba(245, 158, 11, 0.18);
-            color: #fcd34d;
-            border: 1px solid rgba(245, 158, 11, 0.4);
+            font-size: 0.8rem;
+            font-weight: 700;
+            background: #fef3c7;
+            color: #92400e !important;
+            border: 1px solid #fcd34d;
         }
         .badge-err {
             display: inline-block;
-            padding: 0.18rem 0.6rem;
+            padding: 0.2rem 0.65rem;
             border-radius: 6px;
-            font-size: 0.78rem;
-            font-weight: 600;
-            background: rgba(239, 68, 68, 0.18);
-            color: #fca5a5;
-            border: 1px solid rgba(239, 68, 68, 0.4);
+            font-size: 0.8rem;
+            font-weight: 700;
+            background: #fee2e2;
+            color: #991b1b !important;
+            border: 1px solid #fca5a5;
         }
         .url-box {
-            background: rgba(15, 23, 42, 0.85);
-            border: 1px solid rgba(148, 163, 184, 0.2);
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
             border-radius: 8px;
-            padding: 0.45rem 0.75rem;
+            padding: 0.55rem 0.85rem;
             font-family: monospace;
-            font-size: 0.81rem;
-            color: #e2e8f0;
+            font-size: 0.84rem;
+            color: #0f172a !important;
             word-break: break-all;
             margin-top: 0.25rem;
             margin-bottom: 0.5rem;
@@ -1935,70 +2047,219 @@ def verify_credentials(username: str, password: str) -> bool:
 
 
 def render_lakshmi_mantra_header() -> None:
-    """Renders the auspicious Lakshmi Mantra caption and bordered Lakshmi Beej Mantra & Trading Greeting box."""
-    st.caption("✨ *ॐ श्रीं महालक्ष्म्यै नमः (Om Shreem Mahalakshmyai Namah)* | Institutional High-Conviction Engine")
-    with st.container(border=True):
-        st.caption(
-            "🌱 **Lakshmi Beej Mantra (Growth & Seed Capital):** *ॐ श्रीं ह्रीं श्रीं कमले कमलालये प्रसीद प्रसीद श्रीं ह्रीं श्रीं महालक्ष्म्यै नमः (Om Shreem Hreem Shreem Kamale Kamalalaye Praseeda Praseeda Shreem Hreem Shreem Mahalakshmyai Namah)*\n\n"
-            "🌸 **Auspicious Trading Greeting:** *ॐ शुभ लाभाय नमः (Om Shubha Labhāya Namah)* — Salutations to auspiciousness and profit (*Labh*)."
+    """Renders the auspicious Lakshmi Mantra caption and bordered Lakshmi Beej Mantra & Trading Greeting box with high-contrast dark text."""
+    st.markdown(
+        """
+        <div class="mantra-subbox">
+            <div style="font-weight: 700; color: #78350f; margin-bottom: 0.35rem; font-size: 0.95rem;">
+                ✨ <em>ॐ श्रीं महालक्ष्म्यै नमः (Om Shreem Mahalakshmyai Namah)</em> &nbsp;|&nbsp; <span style="color: #0f172a;">Institutional High-Conviction Engine</span>
+            </div>
+            <div style="color: #1e293b; margin-bottom: 0.25rem;">
+                🌱 <strong>Lakshmi Beej Mantra (Growth &amp; Seed Capital):</strong>
+                <em>ॐ श्रीं ह्रीं श्रीं कमले कमलालये प्रसीद प्रसीद श्रीं ह्रीं श्रीं महालक्ष्म्यै नमः (Om Shreem Hreem Shreem Kamale Kamalalaye Praseeda Praseeda Shreem Hreem Shreem Mahalakshmyai Namah)</em>
+            </div>
+            <div style="color: #1e293b;">
+                🌸 <strong>Auspicious Trading Greeting:</strong>
+                <em>ॐ शुभ लाभाय नमः (Om Shubha Labhāya Namah)</em> — Salutations to auspiciousness and profit (<em>Labh</em>).
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_public_streamlit_apps_tab(
+    health_map: dict,
+    search_query: str = "",
+    key_prefix: str = "public",
+) -> None:
+    """
+    Renders the tab containing ONLY Streamlit App links and application details.
+    Visible to all users (unauthenticated visitors and authenticated Admin) and lists BOTH Private and Public apps.
+    Does not expose GitHub repository source URLs or admin-only controls.
+    """
+    st.subheader("🌐 Live Streamlit Applications Directory (Visible to All — Public & Private)")
+    st.markdown(
+        "Direct access to all **5 Aethera Systems Core Streamlit Applications** (**both Private and Public deployments**) "
+        "with application explanations and key quantitative capabilities. *(This directory contains only Streamlit App links and details.)*"
+    )
+
+    total_apps = len(REPOSITORIES)
+    public_count = sum(1 for r in REPOSITORIES if r.get("visibility", "").lower() == "public")
+    private_count = sum(1 for r in REPOSITORIES if r.get("visibility", "").lower() == "private")
+    online_apps = sum(1 for r in REPOSITORIES if health_map.get(r["slug"], {}).get("healthy", False))
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Total Streamlit Apps", f"{total_apps} Apps", "Visible to All")
+    m2.metric("🌐 Public Streamlit Apps", f"{public_count} Public", "Open Access")
+    m3.metric("🔒 Private Streamlit Apps", f"{private_count} Private", "Listed with Details")
+    m4.metric("Live App Reachability", f"{online_apps} / {total_apps} Online", "Real-Time Status")
+
+    f_col1, f_col2 = st.columns([1.4, 1.6])
+    with f_col1:
+        vis_filter = st.radio(
+            "Filter by Visibility (Private & Public)",
+            options=[
+                f"All Apps ({total_apps} — Both Private & Public)",
+                f"🌐 Public Apps Only ({public_count})",
+                f"🔒 Private Apps Only ({private_count})",
+            ],
+            index=0,
+            horizontal=True,
+            key=f"{key_prefix}_vis_filter",
         )
+    with f_col2:
+        local_search = st.text_input(
+            "🔍 Search Streamlit Apps by Name, Asset Class, or Capability",
+            value=search_query,
+            placeholder="e.g., ETF, REIT, SmartStock, HNI, AI Data Center, NCD, Bond...",
+            key=f"{key_prefix}_app_search",
+        ).strip()
+
+    apps_to_show = list(REPOSITORIES)
+    if "Public Apps Only" in vis_filter:
+        apps_to_show = [r for r in apps_to_show if r.get("visibility", "").lower() == "public"]
+    elif "Private Apps Only" in vis_filter:
+        apps_to_show = [r for r in apps_to_show if r.get("visibility", "").lower() == "private"]
+
+    if local_search:
+        q = local_search.lower()
+        apps_to_show = [
+            r
+            for r in apps_to_show
+            if q in r["title"].lower()
+            or q in r["category"].lower()
+            or q in r["brief_explanation"].lower()
+            or q in r.get("visibility", "").lower()
+            or any(q in h.lower() for h in r["highlights"])
+        ]
+
+    st.divider()
+
+    for repo in apps_to_show:
+        slug = repo["slug"]
+        hlth = health_map.get(slug, {})
+        badge_class = "badge-ok" if hlth.get("healthy", True) else "badge-warn"
+        is_priv = repo.get("visibility", "Public").lower() == "private"
+        vis_badge_class = "vis-private" if is_priv else "vis-public"
+        vis_label = "🔒 Private Streamlit App" if is_priv else "🌐 Public Streamlit App"
+
+        st.markdown(
+            f"""
+            <div class="repo-card" style="border-left: 6px solid {repo['accent']};">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+                    <div>
+                        <span class="category-pill">{repo['icon']} App #{repo['id']} • {repo['category']}</span>
+                        <span class="{vis_badge_class}" style="margin-left:6px;">{vis_label}</span>
+                    </div>
+                    <div>
+                        <span class="{badge_class}">{hlth.get('ingress_state', '🟢 Online')} • {hlth.get('ingress_ms', 0)} ms</span>
+                    </div>
+                </div>
+                <h3 style="margin: 0.35rem 0 0.45rem 0; color: #0f172a;">
+                    {repo['icon']} {repo['title']}
+                </h3>
+                <p style="color: #1e293b; font-size: 0.96rem; line-height: 1.6; margin-bottom: 0.4rem;">
+                    <strong>Application Details:</strong> {repo['brief_explanation']}
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        col_app_link, col_app_details = st.columns([1.25, 1.75])
+        with col_app_link:
+            st.markdown("**🚀 Direct Streamlit Application Link:**")
+            st.link_button(
+                f"🚀 Launch Streamlit App #{repo['id']}: {repo['title']}",
+                repo["streamlit_url"],
+                use_container_width=True,
+                type="primary",
+            )
+            st.markdown(
+                f"""
+                <div class="url-box">
+                    <strong>Streamlit App Link:</strong><br/>
+                    <a href="{repo['streamlit_url']}" target="_blank" style="color:#1d4ed8; font-weight:600; text-decoration:underline;">{repo['streamlit_url']}</a><br/>
+                    <strong>App Access Type:</strong> <span style="color:#0f172a; font-weight:600;">{repo['visibility']} ({vis_label})</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        with col_app_details:
+            st.markdown("**⚡ Key Modules & Quantitative Details:**")
+            for bullet in repo["highlights"]:
+                st.markdown(f"- {bullet}")
+
+        st.write("")
+
+    st.divider()
+    st.markdown("#### 📋 Summary Table — All Streamlit Apps & Details (Both Private & Public)")
+    public_table_rows = []
+    for r in apps_to_show:
+        h = health_map.get(r["slug"], {})
+        is_priv = r.get("visibility", "Public").lower() == "private"
+        public_table_rows.append(
+            {
+                "#": r["id"],
+                "Streamlit Application": f"{r['icon']} {r['title']}",
+                "Visibility": "🔒 Private" if is_priv else "🌐 Public",
+                "Category": r["category"],
+                "Live Status": h.get("ingress_state", "🟢 Online"),
+                "Application Details & Brief Explanation": r["brief_explanation"],
+                "Streamlit App Link": r["streamlit_url"],
+            }
+        )
+
+    st.dataframe(
+        pd.DataFrame(public_table_rows),
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "#": st.column_config.NumberColumn("#", width="small"),
+            "Streamlit Application": st.column_config.TextColumn("Streamlit Application", width="medium"),
+            "Visibility": st.column_config.TextColumn("Visibility (Private/Public)", width="small"),
+            "Category": st.column_config.TextColumn("Category", width="medium"),
+            "Application Details & Brief Explanation": st.column_config.TextColumn("Application Details", width="large"),
+            "Streamlit App Link": st.column_config.LinkColumn("Streamlit App Link", width="medium"),
+        },
+    )
 
 
 def render_login_page() -> None:
-    """Renders the centered login screen asking for Username (Admin) and Password (Aether@)."""
-    with st.sidebar:
-        st.markdown("### 🏛️ Aethera MasterRep")
-        render_lakshmi_mantra_header()
-        st.markdown("**👤 Access:** `🔒 Private / Login Required`")
-        st.caption("Authenticate to access all Aethera repositories, live Streamlit apps, health probes, and cron schedules.")
+    """
+    Renders the public visitor view where:
+    - Tab 1 ('🌐 1. Streamlit Apps & Details (Visible to All — Private & Public)') is immediately visible to everyone.
+    - Tab 2 ('🔐 2. Admin Login') & the Sidebar allow Admin (Admin / Aether@) to authenticate for Git repos, health probes, cron & Open Interpreter.
+    """
+    health_map = probe_all_apps_health()
 
+    # Top Auspicious Banner (Unclipped, high-contrast dark text on warm light gold)
     st.markdown(
         '<div class="mantra-banner">'
         "✨ ॐ श्रीं महालक्ष्म्यै नमः (Om Shreem Mahalakshmyai Namah) | Institutional High-Conviction Engine ✨"
         "</div>",
         unsafe_allow_html=True,
     )
+    render_lakshmi_mantra_header()
 
-    _, center_col, _ = st.columns([1.0, 1.8, 1.0])
-    with center_col:
-        render_lakshmi_mantra_header()
-
-        st.markdown(
-            """
-            <div class="login-card">
-                <div style="text-align:center; margin-bottom: 1rem;">
-                    <span style="font-size: 2.8rem;">🏛️</span>
-                    <h2 style="margin: 0.3rem 0 0.2rem 0; color: #f8fafc;">Aethera Systems Core</h2>
-                    <p style="margin: 0; color: #94a3b8; font-size: 0.95rem;">
-                        Master Repository, Live App Liveness, CPU/RAM Telemetry &amp; Commit Blocker Portal
-                    </p>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+    with st.sidebar:
+        st.markdown("### 🏛️ Aethera MasterRep")
+        st.markdown("**🌐 Public Directory:** `Visible to All`")
+        st.markdown("**🔐 Admin Hub:** `Login Below`")
+        st.caption(
+            "All 5 Streamlit Apps (Private & Public) and their details are openly accessible in Tab 1. "
+            "Log in as Admin to unlock Git repositories, Liveness Probes, CPU/RAM telemetry, Cron links, and Open Interpreter."
         )
-
-        with st.form("aethera_master_login_form", clear_on_submit=False):
-            st.markdown("#### 🔐 Administrator Authentication")
-            username_input = st.text_input(
-                "User Name",
-                placeholder="Enter User Name (Admin)",
-                help="Enter the administrator username.",
-            )
-            password_input = st.text_input(
-                "Password",
-                type="password",
-                placeholder="Enter Password",
-                help="Enter the administrator password.",
-            )
-            submit_btn = st.form_submit_button(
-                "🚀 Login to Master Repository Hub",
-                use_container_width=True,
-                type="primary",
-            )
-
-            if submit_btn:
-                if verify_credentials(username_input, password_input):
+        st.divider()
+        with st.form("sidebar_admin_login_form", clear_on_submit=False):
+            st.markdown("#### 🔐 Quick Admin Login")
+            sb_user = st.text_input("User Name", placeholder="Admin", key="sb_login_user")
+            sb_pass = st.text_input("Password", type="password", placeholder="Password", key="sb_login_pass")
+            sb_submit = st.form_submit_button("🚀 Admin Login", use_container_width=True, type="primary")
+            if sb_submit:
+                if verify_credentials(sb_user, sb_pass):
                     st.session_state["authenticated"] = True
                     st.session_state["auth_user"] = MASTER_USERNAME
                     st.session_state["login_time_ist"] = datetime.datetime.now(IST).strftime(
@@ -2006,12 +2267,72 @@ def render_login_page() -> None:
                     )
                     st.rerun()
                 else:
-                    st.error("❌ Invalid User Name or Password. Please enter valid Admin credentials.")
+                    st.error("❌ Invalid Admin credentials.")
 
-        st.caption(
-            "Protected Master Gateway • Authenticate to view all GitHub repositories, "
-            "live liveness probes, CPU/RAM usage, commit blocker forensics, and external Cron scheduler links."
-        )
+    st.title("🏛️ Aethera Systems Core — Streamlit Apps & Master Portal")
+
+    tab_public_apps, tab_admin_login = st.tabs(
+        [
+            "🌐 1. Streamlit Apps & Details Only (Visible to All — Public & Private)",
+            "🔐 2. Admin Login (Unlock Git Repos, Health Probes, Cron & Open Interpreter)",
+        ]
+    )
+
+    with tab_public_apps:
+        render_public_streamlit_apps_tab(health_map, key_prefix="visitor_pub")
+
+    with tab_admin_login:
+        _, center_col, _ = st.columns([1.0, 1.8, 1.0])
+        with center_col:
+            st.markdown(
+                """
+                <div class="login-card">
+                    <div style="text-align:center; margin-bottom: 0.5rem;">
+                        <span style="font-size: 2.6rem;">🏛️</span>
+                        <h2 style="margin: 0.3rem 0 0.25rem 0; color: #0f172a;">Aethera Systems Core — Admin Gateway</h2>
+                        <p style="margin: 0; color: #334155; font-size: 0.95rem;">
+                            Authenticate to access GitHub Repositories, Live App Liveness Probes, CPU/RAM Telemetry, Commit Forensics &amp; Open Interpreter Studio
+                        </p>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            with st.form("aethera_master_login_form", clear_on_submit=False):
+                st.markdown("#### 🔐 Administrator Authentication")
+                username_input = st.text_input(
+                    "User Name",
+                    placeholder="Enter User Name (Admin)",
+                    help="Enter the administrator username.",
+                )
+                password_input = st.text_input(
+                    "Password",
+                    type="password",
+                    placeholder="Enter Password",
+                    help="Enter the administrator password.",
+                )
+                submit_btn = st.form_submit_button(
+                    "🚀 Login to Master Repository Hub",
+                    use_container_width=True,
+                    type="primary",
+                )
+
+                if submit_btn:
+                    if verify_credentials(username_input, password_input):
+                        st.session_state["authenticated"] = True
+                        st.session_state["auth_user"] = MASTER_USERNAME
+                        st.session_state["login_time_ist"] = datetime.datetime.now(IST).strftime(
+                            "%Y-%m-%d %H:%M:%S IST"
+                        )
+                        st.rerun()
+                    else:
+                        st.error("❌ Invalid User Name or Password. Please enter valid Admin credentials.")
+
+            st.caption(
+                "Protected Master Gateway • Authenticate to view all GitHub repositories, "
+                "live liveness probes, CPU/RAM usage, commit blocker forensics, and external Cron scheduler links."
+            )
 
 
 # =====================================================================
@@ -2126,11 +2447,7 @@ def render_master_dashboard() -> None:
             fetch_all_repos_git_forensics.clear()
             st.rerun()
 
-    with st.container(border=True):
-        st.caption(
-            "🌱 **Lakshmi Beej Mantra (Growth & Seed Capital):** *ॐ श्रीं ह्रीं श्रीं कमले कमलालये प्रसीद प्रसीद श्रीं ह्रीं श्रीं महालक्ष्म्यै नमः (Om Shreem Hreem Shreem Kamale Kamalalaye Praseeda Praseeda Shreem Hreem Shreem Mahalakshmyai Namah)*  \n"
-            "🌸 **Auspicious Trading Greeting:** *ॐ शुभ लाभाय नमः (Om Shubha Labhāya Namah)* — Salutations to auspiciousness and profit (*Labh*)."
-        )
+    render_lakshmi_mantra_header()
 
     # Summary KPI Strip
     online_count = sum(1 for r in REPOSITORIES if health_map.get(r["slug"], {}).get("healthy", False))
@@ -2150,15 +2467,23 @@ def render_master_dashboard() -> None:
     # =================================================================
     # NAVIGATION TABS
     # =================================================================
-    tab_repos, tab_health, tab_commits, tab_table, tab_oi = st.tabs(
+    tab_public_only, tab_repos, tab_health, tab_commits, tab_table, tab_oi = st.tabs(
         [
-            "🚀 1. Repositories & Live Streamlit Apps (Cards)",
-            "🩺 2. App Health, Liveness Probes & CPU/RAM Usage",
-            "🔍 3. Commits, CI Workflows & App Blocker Forensics",
-            "📊 4. Unified Master Directory Table & Cron URLs",
-            "🤖 5. Open Interpreter: Repo Audit, Backtest & Optimization",
+            "🌐 1. Streamlit Apps Only (Visible to All — Public & Private)",
+            "🚀 2. Repositories & Live Streamlit Apps (Admin Cards)",
+            "🩺 3. App Health, Liveness Probes & CPU/RAM Usage",
+            "🔍 4. Commits, CI Workflows & App Blocker Forensics",
+            "📊 5. Unified Master Directory Table & Cron URLs",
+            "🤖 6. Open Interpreter: Repo Audit, Backtest & Optimization",
         ]
     )
+
+    with tab_public_only:
+        render_public_streamlit_apps_tab(
+            health_map,
+            search_query=search_query,
+            key_prefix="admin_pub",
+        )
 
     # Filter repositories by search query
     filtered_repos = REPOSITORIES
@@ -2176,20 +2501,20 @@ def render_master_dashboard() -> None:
         ]
 
     # =================================================================
-    # TAB 1: REPOSITORY CARDS (BRIEF EXPLANATION + GIT + STREAMLIT + LIVE STATUS)
+    # TAB 2: REPOSITORY CARDS (BRIEF EXPLANATION + GIT + STREAMLIT + LIVE STATUS)
     # =================================================================
     with tab_repos:
         # External Cron Banner
         st.markdown(
             f"""
             <div class="cron-card">
-                <span class="category-pill" style="background:rgba(16,185,129,0.2); color:#6ee7b7; border-color:rgba(16,185,129,0.45);">
+                <span class="category-pill" style="background:#d1fae5; color:#065f46; border-color:#6ee7b7;">
                     ⏰ EXTERNAL CRON AUTOMATION &amp; KEEP-ALIVE SCHEDULER
                 </span>
-                <h4 style="margin:0.2rem 0 0.3rem 0; color:#f8fafc;">
-                    External Cron Scheduler — <a href="{EXTERNAL_CRON_URL}" target="_blank" style="color:#34d399; text-decoration:underline;">{EXTERNAL_CRON_URL}</a>
+                <h4 style="margin:0.2rem 0 0.3rem 0; color:#0f172a;">
+                    External Cron Scheduler — <a href="{EXTERNAL_CRON_URL}" target="_blank" style="color:#047857; text-decoration:underline;">{EXTERNAL_CRON_URL}</a>
                 </h4>
-                <p style="margin:0; color:#cbd5e1; font-size:0.92rem;">
+                <p style="margin:0; color:#1e293b; font-size:0.94rem;">
                     Prevents Streamlit Cloud container hibernation ("Zzz" sleep state) and triggers scheduled market-hour wake-ups across all 5 apps.
                 </p>
             </div>
@@ -2219,22 +2544,27 @@ def render_master_dashboard() -> None:
             hlth = health_map.get(slug, {})
             git_info = git_map.get(slug, {})
             badge_class = "badge-ok" if hlth.get("healthy") else "badge-warn"
+            is_priv = repo.get("visibility", "Public").lower() == "private"
+            vis_badge_class = "vis-private" if is_priv else "vis-public"
 
             st.markdown(
                 f"""
-                <div class="repo-card" style="border-left: 5px solid {repo['accent']};">
+                <div class="repo-card" style="border-left: 6px solid {repo['accent']};">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-                        <span class="category-pill">{repo['icon']} App #{repo['id']} • {repo['category']}</span>
+                        <div>
+                            <span class="category-pill">{repo['icon']} App #{repo['id']} • {repo['category']}</span>
+                            <span class="{vis_badge_class}" style="margin-left:6px;">{'🔒 Private' if is_priv else '🌐 Public'}</span>
+                        </div>
                         <div>
                             <span class="{badge_class}">{hlth.get('ingress_state', '🟢 Online')} • {hlth.get('ingress_ms', 0)} ms</span>
                             <span class="category-pill" style="margin-left:6px;">💾 Est. RAM: {repo['est_ram_mb']}</span>
                             <span class="category-pill" style="margin-left:6px;">🔨 Latest Commit: {git_info.get('latest_sha', '-')} ({git_info.get('latest_date_ist', '-')})</span>
                         </div>
                     </div>
-                    <h3 style="margin: 0.2rem 0 0.45rem 0; color: #f8fafc;">
-                        {repo['icon']} {repo['title']} <span style="color:#94a3b8; font-size:0.95rem; font-weight:400;">({repo['slug']})</span>
+                    <h3 style="margin: 0.25rem 0 0.45rem 0; color: #0f172a;">
+                        {repo['icon']} {repo['title']} <span style="color:#475569; font-size:0.95rem; font-weight:500;">({repo['slug']})</span>
                     </h3>
-                    <p style="color: #e2e8f0; font-size: 0.95rem; line-height: 1.55; margin-bottom: 0.6rem;">
+                    <p style="color: #1e293b; font-size: 0.95rem; line-height: 1.55; margin-bottom: 0.6rem;">
                         <strong>Brief Explanation:</strong> {repo['brief_explanation']}
                     </p>
                 </div>
@@ -2263,9 +2593,9 @@ def render_master_dashboard() -> None:
                 st.markdown(
                     f"""
                     <div class="url-box">
-                        <strong>Streamlit App:</strong> <a href="{repo['streamlit_url']}" target="_blank" style="color:#38bdf8;">{repo['streamlit_url']}</a><br/>
-                        <strong>Git Repository:</strong> <a href="{repo['git_url']}" target="_blank" style="color:#a7f3d0;">{repo['git_url']}</a><br/>
-                        <strong>Latest Commit:</strong> <a href="{git_info.get('latest_url', repo['git_url'])}" target="_blank" style="color:#fde68a;">{git_info.get('latest_sha', '')}</a> — {git_info.get('latest_message', '')[:85]}
+                        <strong>Streamlit App:</strong> <a href="{repo['streamlit_url']}" target="_blank" style="color:#1d4ed8; font-weight:600;">{repo['streamlit_url']}</a><br/>
+                        <strong>Git Repository:</strong> <a href="{repo['git_url']}" target="_blank" style="color:#047857; font-weight:600;">{repo['git_url']}</a><br/>
+                        <strong>Latest Commit:</strong> <a href="{git_info.get('latest_url', repo['git_url'])}" target="_blank" style="color:#b45309; font-weight:600;">{git_info.get('latest_sha', '')}</a> — {git_info.get('latest_message', '')[:85]}
                     </div>
                     """,
                     unsafe_allow_html=True,
@@ -2279,7 +2609,7 @@ def render_master_dashboard() -> None:
             st.write("")
 
     # =================================================================
-    # TAB 2: APP HEALTH, LIVENESS PROBES (/_stcore/health) & CPU/RAM USAGE
+    # TAB 3: APP HEALTH, LIVENESS PROBES (/_stcore/health) & CPU/RAM USAGE
     # =================================================================
     with tab_health:
         st.subheader("💻 Real-Time Container & Host Resource Telemetry (CPU / RAM / Disk / Threads)")
@@ -2288,8 +2618,8 @@ def render_master_dashboard() -> None:
             <div class="telemetry-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
                     <div>
-                        <h4 style="margin:0 0 0.25rem 0; color:#f8fafc;">Runtime Environment: <code>{host_tel['platform']}</code></h4>
-                        <p style="margin:0; color:#94a3b8; font-size:0.9rem;">
+                        <h4 style="margin:0 0 0.25rem 0; color:#0f172a;">Runtime Environment: <code>{host_tel['platform']}</code></h4>
+                        <p style="margin:0; color:#334155; font-size:0.92rem;">
                             Last Polled: <strong>{host_tel['timestamp']}</strong> • OS Load Avg (1m/5m/15m): <code>{host_tel['load_avg_str']}</code> •
                             System RAM Used: <code>{host_tel['system_used_ram_mb']} MB / {host_tel['system_total_ram_mb']} MB ({host_tel['system_ram_pct']}%)</code>
                         </p>
