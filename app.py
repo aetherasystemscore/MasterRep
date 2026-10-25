@@ -432,21 +432,59 @@ def inject_custom_css() -> None:
             color: #0f172a !important;
             border-color: #94a3b8 !important;
         }
+        /* Navigation Tabs Styled as Prominent Colored Tiles */
         [data-baseweb="tab-list"] {
-            background-color: #f1f5f9 !important;
-            border-radius: 10px !important;
-            padding: 0.25rem 0.5rem !important;
-            border: 1px solid #cbd5e1 !important;
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 0.65rem !important;
+            background: #e2e8f0 !important;
+            border-radius: 14px !important;
+            padding: 0.65rem 0.75rem !important;
+            border: 1.5px solid #cbd5e1 !important;
+            margin-bottom: 1.1rem !important;
         }
-        [data-baseweb="tab"] {
-            color: #334155 !important;
-            font-weight: 600 !important;
+        [data-baseweb="tab-highlight"], [data-baseweb="tab-border"] {
+            display: none !important;
         }
-        [data-baseweb="tab"][aria-selected="true"] {
-            color: #1d4ed8 !important;
+        button[data-baseweb="tab"] {
+            background: linear-gradient(180deg, #ffffff 0%, #e0f2fe 100%) !important;
+            border: 2px solid #38bdf8 !important;
+            border-radius: 12px !important;
+            padding: 0.7rem 1.25rem !important;
+            min-height: 3.15rem !important;
+            box-shadow: 0 3px 8px rgba(15, 23, 42, 0.08) !important;
+            transition: all 0.16s ease-in-out !important;
+        }
+        button[data-baseweb="tab"] p,
+        button[data-baseweb="tab"] span,
+        button[data-baseweb="tab"] [data-testid="stMarkdownContainer"] {
+            color: #0c4a6e !important;
+            font-size: 1.04rem !important;
             font-weight: 700 !important;
-            background-color: #ffffff !important;
-            border-radius: 8px !important;
+            line-height: 1.3 !important;
+            margin: 0 !important;
+        }
+        button[data-baseweb="tab"]:hover {
+            background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%) !important;
+            border-color: #0284c7 !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 6px 14px rgba(2, 132, 199, 0.18) !important;
+        }
+        /* Selected / Active Tab Tile — Distinct Royal Blue & Gold Highlight */
+        button[data-baseweb="tab"][aria-selected="true"] {
+            background: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%) !important;
+            border: 2.5px solid #f59e0b !important;
+            border-radius: 12px !important;
+            box-shadow: 0 6px 16px rgba(29, 78, 216, 0.35) !important;
+            transform: translateY(-1px) !important;
+        }
+        button[data-baseweb="tab"][aria-selected="true"] p,
+        button[data-baseweb="tab"][aria-selected="true"] span,
+        button[data-baseweb="tab"][aria-selected="true"] [data-testid="stMarkdownContainer"] {
+            color: #ffffff !important;
+            font-size: 1.06rem !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.2px !important;
         }
         pre, code, [data-testid="stCodeBlock"] {
             background-color: #f1f5f9 !important;
