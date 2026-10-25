@@ -432,12 +432,54 @@ def inject_custom_css() -> None:
             color: #0f172a !important;
             border-color: #94a3b8 !important;
         }
-        /* Navigation Tabs Styled as Prominent Colored Tiles */
+        /* All Buttons, Link Buttons, Form Submit Buttons & Download Buttons — Bright High-Contrast Light Tiles with Bold Dark Text */
+        .stButton > button,
+        .stDownloadButton > button,
+        .stFormSubmitButton > button,
+        .stLinkButton > a,
+        [data-testid="stBaseButton-primary"],
+        [data-testid="stBaseButton-secondary"],
+        [data-testid="baseButton-primary"],
+        [data-testid="baseButton-secondary"] {
+            background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%) !important;
+            color: #0f172a !important;
+            border: 2px solid #0284c7 !important;
+            border-radius: 10px !important;
+            padding: 0.55rem 1rem !important;
+            font-weight: 800 !important;
+            font-size: 0.96rem !important;
+            box-shadow: 0 2px 6px rgba(2, 132, 199, 0.15) !important;
+            text-decoration: none !important;
+            transition: all 0.15s ease-in-out !important;
+        }
+        .stButton > button *,
+        .stDownloadButton > button *,
+        .stFormSubmitButton > button *,
+        .stLinkButton > a *,
+        [data-testid="stBaseButton-primary"] *,
+        [data-testid="stBaseButton-secondary"] *,
+        [data-testid="baseButton-primary"] *,
+        [data-testid="baseButton-secondary"] * {
+            color: #0f172a !important;
+            font-weight: 800 !important;
+            font-size: 0.96rem !important;
+        }
+        .stButton > button:hover,
+        .stDownloadButton > button:hover,
+        .stFormSubmitButton > button:hover,
+        .stLinkButton > a:hover {
+            background: linear-gradient(180deg, #bae6fd 0%, #7dd3fc 100%) !important;
+            border-color: #0369a1 !important;
+            color: #0f172a !important;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25) !important;
+            transform: translateY(-1px) !important;
+        }
+        /* Navigation Tabs Styled as Prominent Colored Tiles (Unselected = Sky Tile, Selected = Warm Gold Tile) */
         [data-baseweb="tab-list"] {
             display: flex !important;
             flex-wrap: wrap !important;
             gap: 0.65rem !important;
-            background: #e2e8f0 !important;
+            background: #f1f5f9 !important;
             border-radius: 14px !important;
             padding: 0.65rem 0.75rem !important;
             border: 1.5px solid #cbd5e1 !important;
@@ -448,41 +490,39 @@ def inject_custom_css() -> None:
         }
         button[data-baseweb="tab"] {
             background: linear-gradient(180deg, #ffffff 0%, #e0f2fe 100%) !important;
-            border: 2px solid #38bdf8 !important;
+            border: 2px solid #0284c7 !important;
             border-radius: 12px !important;
-            padding: 0.7rem 1.25rem !important;
-            min-height: 3.15rem !important;
+            padding: 0.72rem 1.25rem !important;
+            min-height: 3.2rem !important;
             box-shadow: 0 3px 8px rgba(15, 23, 42, 0.08) !important;
             transition: all 0.16s ease-in-out !important;
         }
-        button[data-baseweb="tab"] p,
-        button[data-baseweb="tab"] span,
-        button[data-baseweb="tab"] [data-testid="stMarkdownContainer"] {
-            color: #0c4a6e !important;
-            font-size: 1.04rem !important;
+        button[data-baseweb="tab"],
+        button[data-baseweb="tab"] * {
+            color: #0f172a !important;
+            font-size: 1.05rem !important;
             font-weight: 700 !important;
             line-height: 1.3 !important;
             margin: 0 !important;
         }
         button[data-baseweb="tab"]:hover {
             background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%) !important;
-            border-color: #0284c7 !important;
+            border-color: #0369a1 !important;
             transform: translateY(-1px) !important;
             box-shadow: 0 6px 14px rgba(2, 132, 199, 0.18) !important;
         }
-        /* Selected / Active Tab Tile — Distinct Royal Blue & Gold Highlight */
+        /* Selected / Active Tab Tile — Distinct Warm Amber-Gold Tile with Deep Black/Navy Bold Text */
         button[data-baseweb="tab"][aria-selected="true"] {
-            background: linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%) !important;
-            border: 2.5px solid #f59e0b !important;
+            background: linear-gradient(180deg, #fef08a 0%, #fcd34d 100%) !important;
+            border: 2.5px solid #b45309 !important;
             border-radius: 12px !important;
-            box-shadow: 0 6px 16px rgba(29, 78, 216, 0.35) !important;
+            box-shadow: 0 6px 16px rgba(217, 119, 6, 0.28) !important;
             transform: translateY(-1px) !important;
         }
-        button[data-baseweb="tab"][aria-selected="true"] p,
-        button[data-baseweb="tab"][aria-selected="true"] span,
-        button[data-baseweb="tab"][aria-selected="true"] [data-testid="stMarkdownContainer"] {
-            color: #ffffff !important;
-            font-size: 1.06rem !important;
+        button[data-baseweb="tab"][aria-selected="true"],
+        button[data-baseweb="tab"][aria-selected="true"] * {
+            color: #0f172a !important;
+            font-size: 1.08rem !important;
             font-weight: 800 !important;
             letter-spacing: 0.2px !important;
         }
