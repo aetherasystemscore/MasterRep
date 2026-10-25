@@ -2152,141 +2152,87 @@ def render_public_streamlit_apps_tab(
     key_prefix: str = "public",
 ) -> None:
     """
-    Renders the tab containing ONLY Streamlit App links and application details.
-    Visible to all users (unauthenticated visitors and authenticated Admin) and lists BOTH Private and Public apps.
-    Does not expose GitHub repository source URLs or admin-only controls.
+    Renders a clean, simple, numbered directory of all 5 Streamlit Apps (Private & Public)
+    with a short 1-line summary and 'Click here to visit app' links for public users.
     """
-    st.subheader("🌐 Live Streamlit Applications Directory (Visible to All — Public & Private)")
-    st.markdown(
-        "Direct access to all **5 Aethera Systems Core Streamlit Applications** (**both Private and Public deployments**) "
-        "with application explanations and key quantitative capabilities. *(This directory contains only Streamlit App links and details.)*"
-    )
+    short_descriptions = {
+        "stock-etf-reit-invit-screener": "Multi-asset screener and dip-buying allocator for Indian Stocks, ETFs, REITs, InvITs, Gold & Silver.",
+        "SmartStock-Radar": "Corporate catalyst screener, 20-year market trend analyzer, and deep-value equity terminal.",
+        "HNI-Institutional-Investor-Trend": "Tracks NSE/BSE Bulk & Block deals, Superstar portfolios, 15Y Index Support/Resistance, and Sectoral ETFs.",
+        "AI-Data-Center-Growth-Theme": "Screens AI Data Center, Power, Cooling, and Semiconductor value-chain stocks with portfolio optimization.",
+        "NCD-Bond_Screener": "Live NSE debt screener for Corporate NCDs, Tax-Free PSU Bonds, and Sovereign G-Secs with YTM & Duration.",
+    }
 
-    total_apps = len(REPOSITORIES)
-    public_count = sum(1 for r in REPOSITORIES if r.get("visibility", "").lower() == "public")
-    private_count = sum(1 for r in REPOSITORIES if r.get("visibility", "").lower() == "private")
-    online_apps = sum(1 for r in REPOSITORIES if health_map.get(r["slug"], {}).get("healthy", False))
-
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total Streamlit Apps", f"{total_apps} Apps", "Visible to All")
-    m2.metric("🌐 Public Streamlit Apps", f"{public_count} Public", "Open Access")
-    m3.metric("🔒 Private Streamlit Apps", f"{private_count} Private", "Listed with Details")
-    m4.metric("Live App Reachability", f"{online_apps} / {total_apps} Online", "Real-Time Status")
-
-    f_col1, f_col2 = st.columns([1.4, 1.6])
-    with f_col1:
-        vis_filter = st.radio(
-            "Filter by Visibility (Private & Public)",
-            options=[
-                f"All Apps ({total_apps} — Both Private & Public)",
-                f"🌐 Public Apps Only ({public_count})",
-                f"🔒 Private Apps Only ({private_count})",
-            ],
-            index=0,
-            horizontal=True,
-            key=f"{key_prefix}_vis_filter",
-        )
-    with f_col2:
-        local_search = st.text_input(
-            "🔍 Search Streamlit Apps by Name, Asset Class, or Capability",
-            value=search_query,
-            placeholder="e.g., ETF, REIT, SmartStock, HNI, AI Data Center, NCD, Bond...",
-            key=f"{key_prefix}_app_search",
-        ).strip()
+    st.subheader("🌐 Streamlit Applications Directory (Public & Private)")
 
     apps_to_show = list(REPOSITORIES)
-    if "Public Apps Only" in vis_filter:
-        apps_to_show = [r for r in apps_to_show if r.get("visibility", "").lower() == "public"]
-    elif "Private Apps Only" in vis_filter:
-        apps_to_show = [r for r in apps_to_show if r.get("visibility", "").lower() == "private"]
-
-    if local_search:
-        q = local_search.lower()
+    if search_query:
+        q = search_query.lower()
         apps_to_show = [
             r
             for r in apps_to_show
             if q in r["title"].lower()
             or q in r["category"].lower()
-            or q in r["brief_explanation"].lower()
+            or q in short_descriptions.get(r["slug"], "").lower()
             or q in r.get("visibility", "").lower()
-            or any(q in h.lower() for h in r["highlights"])
         ]
 
-    st.divider()
-
-    for repo in apps_to_show:
+    for idx, repo in enumerate(apps_to_show, start=1):
         slug = repo["slug"]
         hlth = health_map.get(slug, {})
         badge_class = "badge-ok" if hlth.get("healthy", True) else "badge-warn"
         is_priv = repo.get("visibility", "Public").lower() == "private"
         vis_badge_class = "vis-private" if is_priv else "vis-public"
-        vis_label = "🔒 Private Streamlit App" if is_priv else "🌐 Public Streamlit App"
+        vis_label = "🔒 Private" if is_priv else "🌐 Public"
+        short_desc = short_descriptions.get(slug, repo["category"])
+        status_label = "🟢 Online" if hlth.get("healthy", True) else "🟡 Check Status"
 
-        st.markdown(
-            f"""
-            <div class="repo-card" style="border-left: 6px solid {repo['accent']};">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-                    <div>
-                        <span class="category-pill">{repo['icon']} App #{repo['id']} • {repo['category']}</span>
-                        <span class="{vis_badge_class}" style="margin-left:6px;">{vis_label}</span>
-                    </div>
-                    <div>
-                        <span class="{badge_class}">{hlth.get('ingress_state', '🟢 Online')} • {hlth.get('ingress_ms', 0)} ms</span>
-                    </div>
-                </div>
-                <h3 style="margin: 0.35rem 0 0.45rem 0; color: #0f172a;">
-                    {repo['icon']} {repo['title']}
-                </h3>
-                <p style="color: #1e293b; font-size: 0.96rem; line-height: 1.6; margin-bottom: 0.4rem;">
-                    <strong>Application Details:</strong> {repo['brief_explanation']}
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        col_app_link, col_app_details = st.columns([1.25, 1.75])
-        with col_app_link:
-            st.markdown("**🚀 Direct Streamlit Application Link:**")
-            st.link_button(
-                f"🚀 Launch Streamlit App #{repo['id']}: {repo['title']}",
-                repo["streamlit_url"],
-                use_container_width=True,
-                type="primary",
-            )
+        c_card, c_btn = st.columns([3.4, 1.1])
+        with c_card:
             st.markdown(
                 f"""
-                <div class="url-box">
-                    <strong>Streamlit App Link:</strong><br/>
-                    <a href="{repo['streamlit_url']}" target="_blank" style="color:#1d4ed8; font-weight:600; text-decoration:underline;">{repo['streamlit_url']}</a><br/>
-                    <strong>App Access Type:</strong> <span style="color:#0f172a; font-weight:600;">{repo['visibility']} ({vis_label})</span>
+                <div class="repo-card" style="border-left: 6px solid {repo['accent']}; padding: 1rem 1.25rem; margin-bottom: 0.55rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.4rem;">
+                        <h3 style="margin: 0; font-size: 1.2rem; color: #0f172a;">
+                            {repo['id']}. {repo['icon']} {repo['title']}
+                        </h3>
+                        <div>
+                            <span class="{vis_badge_class}">{vis_label}</span>
+                            <span class="{badge_class}" style="margin-left:6px;">{status_label}</span>
+                        </div>
+                    </div>
+                    <p style="color: #1e293b; font-size: 0.96rem; margin: 0.4rem 0 0.35rem 0;">
+                        {short_desc}
+                    </p>
+                    <div style="margin-top: 0.25rem;">
+                        👉 <a href="{repo['streamlit_url']}" target="_blank" style="color:#1d4ed8; font-weight:800; font-size:0.98rem; text-decoration:underline;">Click here to visit app</a>
+                    </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
-
-        with col_app_details:
-            st.markdown("**⚡ Key Modules & Quantitative Details:**")
-            for bullet in repo["highlights"]:
-                st.markdown(f"- {bullet}")
-
-        st.write("")
+        with c_btn:
+            st.write("")
+            st.write("")
+            st.link_button(
+                f"🔗 {repo['id']}. Click here to visit app",
+                repo["streamlit_url"],
+                use_container_width=True,
+                type="primary",
+            )
 
     st.divider()
-    st.markdown("#### 📋 Summary Table — All Streamlit Apps & Details (Both Private & Public)")
+    st.markdown("#### 📋 Quick Numbered App List")
     public_table_rows = []
     for r in apps_to_show:
-        h = health_map.get(r["slug"], {})
         is_priv = r.get("visibility", "Public").lower() == "private"
         public_table_rows.append(
             {
-                "#": r["id"],
-                "Streamlit Application": f"{r['icon']} {r['title']}",
-                "Visibility": "🔒 Private" if is_priv else "🌐 Public",
-                "Category": r["category"],
-                "Live Status": h.get("ingress_state", "🟢 Online"),
-                "Application Details & Brief Explanation": r["brief_explanation"],
-                "Streamlit App Link": r["streamlit_url"],
+                "No.": r["id"],
+                "Application Name": f"{r['id']}. {r['icon']} {r['title']}",
+                "Access": "🔒 Private" if is_priv else "🌐 Public",
+                "Short Description": short_descriptions.get(r["slug"], r["category"]),
+                "App Link": r["streamlit_url"],
             }
         )
 
@@ -2295,12 +2241,15 @@ def render_public_streamlit_apps_tab(
         use_container_width=True,
         hide_index=True,
         column_config={
-            "#": st.column_config.NumberColumn("#", width="small"),
-            "Streamlit Application": st.column_config.TextColumn("Streamlit Application", width="medium"),
-            "Visibility": st.column_config.TextColumn("Visibility (Private/Public)", width="small"),
-            "Category": st.column_config.TextColumn("Category", width="medium"),
-            "Application Details & Brief Explanation": st.column_config.TextColumn("Application Details", width="large"),
-            "Streamlit App Link": st.column_config.LinkColumn("Streamlit App Link", width="medium"),
+            "No.": st.column_config.NumberColumn("No.", width="small"),
+            "Application Name": st.column_config.TextColumn("Application Name", width="medium"),
+            "Access": st.column_config.TextColumn("Access", width="small"),
+            "Short Description": st.column_config.TextColumn("Summary", width="large"),
+            "App Link": st.column_config.LinkColumn(
+                "App Link",
+                display_text="Click here to visit app",
+                width="medium",
+            ),
         },
     )
 
@@ -2308,8 +2257,8 @@ def render_public_streamlit_apps_tab(
 def render_login_page() -> None:
     """
     Renders the public visitor view where:
-    - Tab 1 ('🌐 1. Streamlit Apps & Details (Visible to All — Private & Public)') is immediately visible to everyone.
-    - Tab 2 ('🔐 2. Admin Login') & the Sidebar allow Admin (Admin / Aether@) to authenticate for Git repos, health probes, cron & Open Interpreter.
+    - Tab 1 ('🌐 1. Streamlit Apps (Public & Private)') is simple and immediately visible to everyone.
+    - Tab 2 ('🔐 2. Admin Login') & the Sidebar allow Admin (Admin / Aether@) to authenticate.
     """
     health_map = probe_all_apps_health()
 
@@ -2323,14 +2272,7 @@ def render_login_page() -> None:
     render_lakshmi_mantra_header()
 
     with st.sidebar:
-        st.markdown("### 🏛️ Aethera MasterRep")
-        st.markdown("**🌐 Public Directory:** `Visible to All`")
-        st.markdown("**🔐 Admin Hub:** `Login Below`")
-        st.caption(
-            "All 5 Streamlit Apps (Private & Public) and their details are openly accessible in Tab 1. "
-            "Log in as Admin to unlock Git repositories, Liveness Probes, CPU/RAM telemetry, Cron links, and Open Interpreter."
-        )
-        st.divider()
+        st.markdown("### 🏛️ Aethera Master Portal")
         with st.form("sidebar_admin_login_form", clear_on_submit=False):
             st.markdown("#### 🔐 Quick Admin Login")
             sb_user = st.text_input("User Name", placeholder="Admin", key="sb_login_user")
@@ -2347,12 +2289,12 @@ def render_login_page() -> None:
                 else:
                     st.error("❌ Invalid Admin credentials.")
 
-    st.title("🏛️ Aethera Systems Core — Streamlit Apps & Master Portal")
+    st.title("🏛️ Aethera Systems Core — Applications Portal")
 
     tab_public_apps, tab_admin_login = st.tabs(
         [
-            "🌐 1. Streamlit Apps & Details Only (Visible to All — Public & Private)",
-            "🔐 2. Admin Login (Unlock Git Repos, Health Probes, Cron & Open Interpreter)",
+            "🌐 1. Streamlit Apps Directory (Visible to All)",
+            "🔐 2. Admin Login",
         ]
     )
 
@@ -2367,9 +2309,9 @@ def render_login_page() -> None:
                 <div class="login-card">
                     <div style="text-align:center; margin-bottom: 0.5rem;">
                         <span style="font-size: 2.6rem;">🏛️</span>
-                        <h2 style="margin: 0.3rem 0 0.25rem 0; color: #0f172a;">Aethera Systems Core — Admin Gateway</h2>
+                        <h2 style="margin: 0.3rem 0 0.25rem 0; color: #0f172a;">Aethera Systems Core — Admin Login</h2>
                         <p style="margin: 0; color: #334155; font-size: 0.95rem;">
-                            Authenticate to access GitHub Repositories, Live App Liveness Probes, CPU/RAM Telemetry, Commit Forensics &amp; Open Interpreter Studio
+                            Login as Admin to access GitHub Repositories, Health Probes, Cron &amp; Open Interpreter
                         </p>
                     </div>
                 </div>
@@ -2406,11 +2348,6 @@ def render_login_page() -> None:
                         st.rerun()
                     else:
                         st.error("❌ Invalid User Name or Password. Please enter valid Admin credentials.")
-
-            st.caption(
-                "Protected Master Gateway • Authenticate to view all GitHub repositories, "
-                "live liveness probes, CPU/RAM usage, commit blocker forensics, and external Cron scheduler links."
-            )
 
 
 # =====================================================================
