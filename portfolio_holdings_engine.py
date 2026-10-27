@@ -2221,13 +2221,13 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
                 <div>
                     <span class="category-pill" style="background:#dbeafe; color:#1e3a8a; border-color:#93c5fd;">
-                        💼 LIVE PORTFOLIO CRITIC • FII/DII FLOW • WALK-FORWARD BACKTESTED REPLACEMENTS
+                        🔒 ADMIN-ONLY • MULTI-PORTFOLIO CRITIC • FII/DII FLOW • WALK-FORWARD BACKTESTED REPLACEMENTS
                     </span>
                     <h3 style="margin: 0.25rem 0 0.2rem 0; color: #0f172a; font-size: 1.32rem;">
                         Portfolio Holdings Critic, Fundamental/Technical/FII-DII Scorer &amp; Backtested Replacement Engine
                     </h3>
                     <p style="margin: 0; color: #1e293b; font-size: 0.94rem;">
-                        Pre-loaded with your <strong>102 Zerodha Holdings</strong> (or upload any Excel <code>.xlsx</code> / <code>.csv</code> / <code>.tsv</code> portfolio).
+                        Restricted to authenticated <strong>Admin</strong> sessions. Pre-loaded with <strong>Portfolio #1 (142 Zerodha Holdings)</strong> and ready for multi-portfolio profiles, Excel (<code>.xlsx</code>) or CSV/TSV uploads.
                         Every keep/exit/replace decision and alternate ticker suggestion is computed dynamically from <strong>100% real live &amp; historical Yahoo Finance (<code>yfinance</code>) OHLCV + Fundamental + Institutional ownership data</strong> and optimized across a <strong>3-Iteration Multi-Expert Critic Pipeline</strong>.
                     </p>
                 </div>
@@ -2237,19 +2237,41 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         unsafe_allow_html=True,
     )
 
+    if "admin_portfolio_profiles" not in st.session_state:
+        st.session_state["admin_portfolio_profiles"] = {
+            "Portfolio #1 — Primary Multi-Asset Demat (142 Holdings)": DEFAULT_USER_HOLDINGS_TSV,
+        }
+
     # -----------------------------------------------------------------
-    # STEP 1: UPLOAD EXCEL / CSV OR USE PRE-LOADED 102 HOLDINGS + SETTINGS
+    # STEP 1: ADMIN PORTFOLIO PROFILE SELECTOR, UPLOAD EXCEL/CSV & SETTINGS
     # -----------------------------------------------------------------
-    with st.expander("📤 Upload Holdings File (Excel `.xlsx` / `.csv` / `.tsv`) or Configure Backtest Horizon", expanded=True):
+    with st.expander("📤 Select Admin Portfolio Profile, Upload Holdings (Excel `.xlsx` / `.csv` / `.tsv`) or Configure Backtest Horizon", expanded=True):
+        prof_c1, prof_c2 = st.columns([2.2, 1.6])
+        with prof_c1:
+            profile_names = list(st.session_state["admin_portfolio_profiles"].keys())
+            selected_profile_name = st.selectbox(
+                "🗂️ Active Admin Portfolio Profile",
+                options=profile_names,
+                index=0,
+                key=f"{key_prefix}_profile_selector",
+                help="Switch between your saved Admin portfolios. As you share or upload more portfolios in the future, they appear here.",
+            )
+        with prof_c2:
+            new_profile_label = st.text_input(
+                "➕ Save Uploaded/Pasted Portfolio As New Admin Profile",
+                placeholder="e.g., Portfolio #2 — Family / HUF Demat",
+                key=f"{key_prefix}_new_profile_name",
+            )
+
         up_c1, up_c2, up_c3 = st.columns([1.6, 1.1, 1.1])
         with up_c1:
             uploaded_file = st.file_uploader(
-                "📂 Upload Your Broker Holdings (Excel `.xlsx`, `.xls`, `.csv`, `.tsv`) — Leave empty to analyze your Pre-Loaded 102 Holdings",
+                "📂 Upload Broker Holdings (Excel `.xlsx`, `.xls`, `.csv`, `.tsv`) — Leave empty to use selected Admin Profile above",
                 type=["xlsx", "xls", "csv", "tsv", "txt"],
                 key=f"{key_prefix}_file_uploader",
             )
             use_custom_paste = st.checkbox(
-                "📋 Or Paste Custom Holdings Table (TSV / CSV)",
+                "📋 Or Paste / Edit Holdings Table (TSV / CSV)",
                 value=False,
                 key=f"{key_prefix}_paste_toggle",
             )
@@ -2284,10 +2306,13 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
                 st.rerun()
 
             # Sample CSV Template download
+            active_profile_tsv = st.session_state["admin_portfolio_profiles"].get(
+                selected_profile_name, DEFAULT_USER_HOLDINGS_TSV
+            )
             st.download_button(
-                "📥 Download Pre-Loaded 102 Holdings (.csv)",
-                data=DEFAULT_USER_HOLDINGS_TSV.replace("\t", ",").encode("utf-8"),
-                file_name="aethera_102_holdings_template.csv",
+                "📥 Download Active Profile Holdings (.csv)",
+                data=active_profile_tsv.replace("\t", ",").encode("utf-8"),
+                file_name="aethera_admin_holdings_profile.csv",
                 mime="text/csv",
                 use_container_width=True,
                 key=f"{key_prefix}_dl_template",
@@ -2297,15 +2322,28 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         if use_custom_paste:
             pasted_text = st.text_area(
                 "Paste Broker Holdings (Tab-separated or Comma-separated with headers `Instrument, Qty., Avg. cost, LTP, Invested, Cur. val, P&L, Net chg., Day chg.`)",
-                value=DEFAULT_USER_HOLDINGS_TSV,
+                value=active_profile_tsv,
                 height=160,
                 key=f"{key_prefix}_pasted_tsv",
             )
 
+        if new_profile_label and new_profile_label.strip():
+            if st.button(f"💾 Save Current Holdings as '{new_profile_label.strip()}'", key=f"{key_prefix}_save_prof_btn"):
+                temp_df, _ = parse_uploaded_holdings_file(
+                    uploaded_file=uploaded_file,
+                    raw_text_override=pasted_text if use_custom_paste else active_profile_tsv,
+                )
+                save_cols = ["Instrument", "Qty.", "Avg. cost", "LTP", "Invested", "Cur. val", "P&L", "Net chg.", "Day chg."]
+                avail_save_cols = [c for c in save_cols if c in temp_df.columns]
+                st.session_state["admin_portfolio_profiles"][new_profile_label.strip()] = temp_df[avail_save_cols].to_csv(
+                    sep="\t", index=False
+                )
+                st.success(f"Saved Admin Portfolio Profile: `{new_profile_label.strip()}` ({len(temp_df)} holdings).")
+
     # Parse holdings & repair broker anomalies
     holdings_df, anomalies_repaired = parse_uploaded_holdings_file(
         uploaded_file=uploaded_file,
-        raw_text_override=pasted_text if use_custom_paste else None,
+        raw_text_override=pasted_text if use_custom_paste else active_profile_tsv,
     )
 
     with st.spinner(

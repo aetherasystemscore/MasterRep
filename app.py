@@ -2843,19 +2843,15 @@ def render_login_page() -> None:
     st.title("🏛️ Aethera Systems Core — Applications Portal")
     st.markdown("#### 🧭 Permanent Navigation Tiles *(Selected Tile = Warm Gold • Unselected = Sky Blue)*")
 
-    tab_public_apps, tab_public_portfolio, tab_admin_login = st.tabs(
+    tab_public_apps, tab_admin_login = st.tabs(
         [
             "🌐 1. Streamlit Apps Directory (Visible to All)",
-            "💼 2. Portfolio Holdings Critic & Backtested Replacements",
-            "🔐 3. Admin Login",
+            "🔐 2. Admin Login",
         ]
     )
 
     with tab_public_apps:
         render_public_streamlit_apps_tab(health_map, key_prefix="visitor_pub")
-
-    with tab_public_portfolio:
-        render_portfolio_holdings_analytics_tab(key_prefix="visitor_port_lab")
 
     with tab_admin_login:
         _, center_col, _ = st.columns([1.0, 1.8, 1.0])
