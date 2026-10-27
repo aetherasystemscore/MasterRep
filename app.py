@@ -51,7 +51,11 @@ except Exception:
     native_oi_interpreter = None
     HAS_NATIVE_OPEN_INTERPRETER = False
 
-from portfolio_holdings_engine import render_portfolio_holdings_analytics_tab
+from portfolio_holdings_engine import (
+    format_indian_currency,
+    render_portfolio_holdings_analytics_tab,
+    render_two_row_fixed_tiles,
+)
 
 # =====================================================================
 # PAGE CONFIGURATION
@@ -435,37 +439,57 @@ def inject_custom_css() -> None:
             color: #0f172a !important;
             border-color: #94a3b8 !important;
         }
-        /* All Buttons, Link Buttons, Form Submit Buttons & Download Buttons — Bright High-Contrast Light Tiles with Bold Dark Text */
+        /* All Default Buttons, Link Buttons, Form Submit Buttons & Download Buttons — Bright Sky-Blue Tiles with Bold Dark Text */
         .stButton > button,
         .stDownloadButton > button,
         .stFormSubmitButton > button,
         .stLinkButton > a,
-        [data-testid="stBaseButton-primary"],
         [data-testid="stBaseButton-secondary"],
-        [data-testid="baseButton-primary"],
         [data-testid="baseButton-secondary"] {
             background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%) !important;
             color: #0f172a !important;
-            border: 2px solid #0284c7 !important;
-            border-radius: 10px !important;
-            padding: 0.62rem 1.05rem !important;
+            border: 2.5px solid #0284c7 !important;
+            border-radius: 12px !important;
+            padding: 0.68rem 1.1rem !important;
             font-weight: 800 !important;
-            font-size: 1.05rem !important;
-            box-shadow: 0 2px 6px rgba(2, 132, 199, 0.15) !important;
+            font-size: 1.08rem !important;
+            box-shadow: 0 3px 8px rgba(2, 132, 199, 0.16) !important;
             text-decoration: none !important;
+            white-space: normal !important;
+            word-wrap: break-word !important;
             transition: all 0.15s ease-in-out !important;
         }
         .stButton > button *,
         .stDownloadButton > button *,
         .stFormSubmitButton > button *,
         .stLinkButton > a *,
-        [data-testid="stBaseButton-primary"] *,
         [data-testid="stBaseButton-secondary"] *,
-        [data-testid="baseButton-primary"] *,
         [data-testid="baseButton-secondary"] * {
             color: #0f172a !important;
             font-weight: 800 !important;
-            font-size: 1.05rem !important;
+            font-size: 1.08rem !important;
+            white-space: normal !important;
+        }
+        /* Primary Buttons (Selected Navigation Tile & Primary CTA) — Warm Amber-Gold Tile with Deep Navy Extra-Bold Text */
+        .stButton > button[kind="primary"],
+        [data-testid="stBaseButton-primary"],
+        [data-testid="baseButton-primary"] {
+            background: linear-gradient(180deg, #fde047 0%, #facc15 100%) !important;
+            color: #0f172a !important;
+            border: 3.5px solid #b45309 !important;
+            border-radius: 14px !important;
+            padding: 0.72rem 1.15rem !important;
+            font-weight: 900 !important;
+            font-size: 1.12rem !important;
+            box-shadow: 0 6px 16px rgba(180, 83, 9, 0.30), inset 0 0 0 2px #fef9c3 !important;
+        }
+        .stButton > button[kind="primary"] *,
+        [data-testid="stBaseButton-primary"] *,
+        [data-testid="baseButton-primary"] * {
+            color: #0f172a !important;
+            font-weight: 900 !important;
+            font-size: 1.12rem !important;
+            white-space: normal !important;
         }
         .stButton > button:hover,
         .stDownloadButton > button:hover,
@@ -474,84 +498,78 @@ def inject_custom_css() -> None:
             background: linear-gradient(180deg, #bae6fd 0%, #7dd3fc 100%) !important;
             border-color: #0369a1 !important;
             color: #0f172a !important;
-            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25) !important;
+            box-shadow: 0 5px 14px rgba(2, 132, 199, 0.26) !important;
             transform: translateY(-1px) !important;
         }
-        /* Permanent Visible Multi-Column Navigation Tile Grid (Unselected = Sky-Blue Tile, Selected = Warm Amber-Gold Tile, Large Font) */
-        [data-testid="stTabs"] [data-baseweb="tab-list"],
-        [data-baseweb="tab-list"] {
-            display: grid !important;
-            grid-template-columns: repeat(auto-fit, minmax(295px, 1fr)) !important;
-            gap: 0.85rem !important;
-            background: #e2e8f0 !important;
-            border-radius: 16px !important;
-            padding: 0.9rem !important;
-            border: 2px solid #94a3b8 !important;
-            margin-bottom: 1.35rem !important;
-            overflow: visible !important;
+        .stButton > button[kind="primary"]:hover,
+        [data-testid="stBaseButton-primary"]:hover {
+            background: linear-gradient(180deg, #fef08a 0%, #eab308 100%) !important;
+            border-color: #92400e !important;
+            transform: translateY(-2px) !important;
         }
-        [data-baseweb="tab-highlight"], [data-baseweb="tab-border"] {
+        /* ============================================================================
+           TWO-ROW PERMANENT FIXED NAVIGATION TILE GRID (1.5X LARGER SIZE — ALWAYS VISIBLE)
+           Targets the bordered container holding `.fixed-tile-nav-marker`
+           ============================================================================ */
+        .fixed-tile-nav-marker {
             display: none !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
-        [data-testid="stTabs"] button[data-baseweb="tab"],
-        button[data-baseweb="tab"] {
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.fixed-tile-nav-marker) {
+            background: #e2e8f0 !important;
+            border: 2.5px solid #64748b !important;
+            border-radius: 18px !important;
+            padding: 1.05rem 1.15rem !important;
+            margin-bottom: 1.4rem !important;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08) !important;
+        }
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.fixed-tile-nav-marker) .stButton > button {
             width: 100% !important;
-            min-height: 4.4rem !important;
+            min-height: 6.4rem !important;
             height: auto !important;
+            padding: 1.1rem 1.25rem !important;
+            border-radius: 16px !important;
             white-space: normal !important;
             word-wrap: break-word !important;
             text-align: center !important;
             justify-content: center !important;
             align-items: center !important;
-            background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%) !important;
-            border: 2.5px solid #0284c7 !important;
-            border-radius: 14px !important;
-            padding: 0.85rem 1.15rem !important;
-            box-shadow: 0 4px 10px rgba(2, 132, 199, 0.16) !important;
-            transition: all 0.16s ease-in-out !important;
+            line-height: 1.35 !important;
         }
-        [data-testid="stTabs"] button[data-baseweb="tab"] p,
-        [data-testid="stTabs"] button[data-baseweb="tab"] div[data-testid="stMarkdownContainer"] p,
-        [data-testid="stTabs"] button[data-baseweb="tab"] span,
-        [data-testid="stTabs"] button[data-baseweb="tab"] div,
-        button[data-baseweb="tab"],
-        button[data-baseweb="tab"] * {
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.fixed-tile-nav-marker) .stButton > button[kind="secondary"],
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.fixed-tile-nav-marker) [data-testid="stBaseButton-secondary"] {
+            background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%) !important;
+            border: 3px solid #0284c7 !important;
+            box-shadow: 0 5px 12px rgba(2, 132, 199, 0.18) !important;
+        }
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.fixed-tile-nav-marker) .stButton > button[kind="secondary"] *,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.fixed-tile-nav-marker) [data-testid="stBaseButton-secondary"] * {
             color: #0f172a !important;
-            font-size: 1.22rem !important;
+            font-size: 1.36rem !important;
             font-weight: 800 !important;
             line-height: 1.35 !important;
             white-space: normal !important;
             text-align: center !important;
-            margin: 0 !important;
         }
-        [data-testid="stTabs"] button[data-baseweb="tab"]:hover,
-        button[data-baseweb="tab"]:hover {
-            background: linear-gradient(180deg, #bae6fd 0%, #7dd3fc 100%) !important;
-            border-color: #0369a1 !important;
-            transform: translateY(-2px) !important;
-            box-shadow: 0 6px 14px rgba(2, 132, 199, 0.25) !important;
-        }
-        /* Selected / Active Permanent Tile — Warm Amber-Gold Tile with Deep Navy/Black Extra-Bold Text */
-        [data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"],
-        button[data-baseweb="tab"][aria-selected="true"] {
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.fixed-tile-nav-marker) .stButton > button[kind="primary"],
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.fixed-tile-nav-marker) [data-testid="stBaseButton-primary"] {
             background: linear-gradient(180deg, #fde047 0%, #facc15 100%) !important;
-            border: 3.5px solid #b45309 !important;
-            border-radius: 14px !important;
-            box-shadow: 0 6px 18px rgba(180, 83, 9, 0.32), inset 0 0 0 2px #fef9c3 !important;
+            border: 4px solid #b45309 !important;
+            box-shadow: 0 8px 20px rgba(180, 83, 9, 0.34), inset 0 0 0 2.5px #fef9c3 !important;
             transform: translateY(-2px) !important;
         }
-        [data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] p,
-        [data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] div[data-testid="stMarkdownContainer"] p,
-        [data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] span,
-        [data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] div,
-        button[data-baseweb="tab"][aria-selected="true"],
-        button[data-baseweb="tab"][aria-selected="true"] * {
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.fixed-tile-nav-marker) .stButton > button[kind="primary"] *,
+        [data-testid="stVerticalBlockBorderWrapper"]:has(.fixed-tile-nav-marker) [data-testid="stBaseButton-primary"] * {
             color: #0f172a !important;
-            font-size: 1.26rem !important;
+            font-size: 1.42rem !important;
             font-weight: 900 !important;
-            letter-spacing: 0.2px !important;
+            line-height: 1.35 !important;
             text-decoration: underline !important;
             text-underline-offset: 4px !important;
+            white-space: normal !important;
+            text-align: center !important;
         }
         pre, code, [data-testid="stCodeBlock"] {
             background-color: #f1f5f9 !important;
@@ -2841,19 +2859,20 @@ def render_login_page() -> None:
                     st.error("❌ Invalid Admin credentials.")
 
     st.title("🏛️ Aethera Systems Core — Applications Portal")
-    st.markdown("#### 🧭 Permanent Navigation Tiles *(Selected Tile = Warm Gold • Unselected = Sky Blue)*")
+    st.markdown("#### 🧭 Permanent Fixed Navigation Tiles *(1.5x Size • Selected Tile = Warm Gold • Unselected = Sky Blue)*")
 
-    tab_public_apps, tab_admin_login = st.tabs(
+    active_login_tile = render_two_row_fixed_tiles(
         [
             "🌐 1. Streamlit Apps Directory (Visible to All)",
             "🔐 2. Admin Login",
-        ]
+        ],
+        state_key="public_portal_nav_tile",
+        row1_count=2,
     )
 
-    with tab_public_apps:
+    if active_login_tile == 0:
         render_public_streamlit_apps_tab(health_map, key_prefix="visitor_pub")
-
-    with tab_admin_login:
+    else:
         _, center_col, _ = st.columns([1.0, 1.8, 1.0])
         with center_col:
             st.markdown(
@@ -3032,10 +3051,12 @@ def render_master_dashboard() -> None:
     st.divider()
 
     # =================================================================
-    # PERMANENT VISIBLE NAVIGATION TILES (2x3 GRID)
+    # PERMANENT TWO-ROW FIXED NAVIGATION TILE GRID (1.5X SIZE — ALWAYS VISIBLE)
     # =================================================================
-    st.markdown("#### 🧭 Permanent Navigation Tiles *(Selected Tile = Warm Gold • Unselected = Sky Blue)*")
-    tab_public_only, tab_repos, tab_health, tab_commits, tab_table, tab_oi, tab_portfolio = st.tabs(
+    st.markdown(
+        "#### 🧭 Permanent Two-Row Fixed Navigation Tiles *(1.5x Larger Size • Always Visible • Selected Tile = Warm Gold • Unselected = Sky Blue)*"
+    )
+    active_main_tile = render_two_row_fixed_tiles(
         [
             "🌐 1. Streamlit Apps Only (Visible to All — Public & Private)",
             "🚀 2. Repositories & Live Streamlit Apps (Admin Cards)",
@@ -3044,15 +3065,10 @@ def render_master_dashboard() -> None:
             "📊 5. Unified Master Directory Table & Cron URLs",
             "🤖 6. Open Interpreter & Antigravity Repo Studio",
             "💼 7. Portfolio Holdings Critic, FII/DII & Backtested Replacements",
-        ]
+        ],
+        state_key="admin_master_main_nav_tile",
+        row1_count=4,
     )
-
-    with tab_public_only:
-        render_public_streamlit_apps_tab(
-            health_map,
-            search_query=search_query,
-            key_prefix="admin_pub",
-        )
 
     # Filter repositories by search query
     filtered_repos = REPOSITORIES
@@ -3069,10 +3085,17 @@ def render_master_dashboard() -> None:
             or q in git_map.get(r["slug"], {}).get("latest_message", "").lower()
         ]
 
+    if active_main_tile == 0:
+        render_public_streamlit_apps_tab(
+            health_map,
+            search_query=search_query,
+            key_prefix="admin_pub",
+        )
+
     # =================================================================
-    # TAB 2: REPOSITORY CARDS (BRIEF EXPLANATION + GIT + STREAMLIT + LIVE STATUS)
+    # TILE 2: REPOSITORY CARDS (BRIEF EXPLANATION + GIT + STREAMLIT + LIVE STATUS)
     # =================================================================
-    with tab_repos:
+    elif active_main_tile == 1:
         # External Cron Banner
         st.markdown(
             f"""
@@ -3178,9 +3201,9 @@ def render_master_dashboard() -> None:
             st.write("")
 
     # =================================================================
-    # TAB 3: APP HEALTH, LIVENESS PROBES (/_stcore/health) & CPU/RAM USAGE
+    # TILE 3: APP HEALTH, LIVENESS PROBES (/_stcore/health) & CPU/RAM USAGE
     # =================================================================
-    with tab_health:
+    elif active_main_tile == 2:
         st.subheader("💻 Real-Time Container & Host Resource Telemetry (CPU / RAM / Disk / Threads)")
         st.markdown(
             f"""
@@ -3270,9 +3293,9 @@ def render_master_dashboard() -> None:
         )
 
     # =================================================================
-    # TAB 3: COMMITS, CI WORKFLOWS & APP BLOCKER FORENSICS
+    # TILE 4: COMMITS, CI WORKFLOWS & APP BLOCKER FORENSICS
     # =================================================================
-    with tab_commits:
+    elif active_main_tile == 3:
         st.subheader("🔍 Git Commit History, CI/CD Workflows & App Blocker Forensics")
         st.markdown(
             "Analyzes the latest commits, dependency manifests (`requirements.txt`), repository sizes, visibility rules, "
@@ -3366,9 +3389,9 @@ def render_master_dashboard() -> None:
                         st.warning(f"**[LIVE COMMIT SCAN]** {dyn_risk}")
 
     # =================================================================
-    # TAB 4: UNIFIED MASTER DIRECTORY TABLE & CRON TARGETS
+    # TILE 5: UNIFIED MASTER DIRECTORY TABLE & CRON TARGETS
     # =================================================================
-    with tab_table:
+    elif active_main_tile == 4:
         st.subheader("📊 Unified Master Directory Table — All Repositories, Health, Commits & Links")
 
         table_rows = []
@@ -3455,9 +3478,9 @@ def render_master_dashboard() -> None:
         )
 
     # =================================================================
-    # TAB 5: OPEN INTERPRETER — REPO AUDIT, BACKTEST & FUTURE OPTIMIZATION
+    # TILE 6: OPEN INTERPRETER — REPO AUDIT, BACKTEST & FUTURE OPTIMIZATION
     # =================================================================
-    with tab_oi:
+    elif active_main_tile == 5:
         st.subheader("🤖 Open Interpreter — Autonomous Repository Audit, Quantitative Backtest & Future Optimization Studio")
         st.markdown(
             "Select any of the **5 Aethera Systems Core repositories** below to run an **Open Interpreter AST & Cloud Blocker Audit**, "
@@ -3628,21 +3651,23 @@ def render_master_dashboard() -> None:
                 cost_bps=cost_bps,
             )
 
-        # 5 Permanent Tile Sub-Tabs for Audit, Backtest, Optimization, Sandbox REPL, and Antigravity-Mode Live Repo Editor & GitHub Commit
-        sub_audit, sub_bt, sub_opt, sub_repl, sub_ag = st.tabs(
+        # 5 Permanent Two-Row Fixed Tile Sub-Tabs for Audit, Backtest, Optimization, Sandbox REPL, and Antigravity-Mode Live Repo Editor & GitHub Commit
+        active_oi_sub_tile = render_two_row_fixed_tiles(
             [
                 "🔍 1. Codebase & Architecture Audit",
                 "📈 2. Live Quantitative Backtest Lab",
                 "⚡ 3. Future Parameter & Portfolio Optimization",
                 "💬 4. Interactive Open Interpreter Agent & Python REPL",
                 "🛠️ 5. Antigravity-Mode: Critic Q&A, Live File Editor & Direct GitHub Commit",
-            ]
+            ],
+            state_key="oi_studio_sub_nav_tile",
+            row1_count=3,
         )
 
         # -------------------------------------------------------------
-        # SUB-TAB 1: CODEBASE & ARCHITECTURE AUDIT
+        # SUB-TILE 1: CODEBASE & ARCHITECTURE AUDIT
         # -------------------------------------------------------------
-        with sub_audit:
+        if active_oi_sub_tile == 0:
             st.markdown(
                 f"#### 🔍 Open Interpreter Static AST & Cloud Readiness Audit — `{target_repo['full_repo']}`"
             )
@@ -3678,9 +3703,9 @@ def render_master_dashboard() -> None:
                 )
 
         # -------------------------------------------------------------
-        # SUB-TAB 2: LIVE QUANTITATIVE BACKTEST LAB
+        # SUB-TILE 2: LIVE QUANTITATIVE BACKTEST LAB
         # -------------------------------------------------------------
-        with sub_bt:
+        elif active_oi_sub_tile == 1:
             st.markdown(
                 f"#### 📈 Vectorized Strategy Backtest — `{bt_res['strategy_name']}` on `{target_repo['slug']}`"
             )
@@ -3722,9 +3747,9 @@ def render_master_dashboard() -> None:
                 )
 
         # -------------------------------------------------------------
-        # SUB-TAB 3: FUTURE PARAMETER & PORTFOLIO OPTIMIZATION
+        # SUB-TILE 3: FUTURE PARAMETER & PORTFOLIO OPTIMIZATION
         # -------------------------------------------------------------
-        with sub_opt:
+        elif active_oi_sub_tile == 2:
             st.markdown(
                 f"#### ⚡ Future Walk-Forward Hyperparameter & Portfolio Allocation Optimization — `{target_repo['slug']}`"
             )
@@ -3773,9 +3798,9 @@ def render_master_dashboard() -> None:
                 st.code(opt_res["opt_code"], language="python")
 
         # -------------------------------------------------------------
-        # SUB-TAB 4: INTERACTIVE OPEN INTERPRETER AGENT & PYTHON REPL
+        # SUB-TILE 4: INTERACTIVE OPEN INTERPRETER AGENT & PYTHON REPL
         # -------------------------------------------------------------
-        with sub_repl:
+        elif active_oi_sub_tile == 3:
             st.markdown(
                 f"#### 💬 Interactive Open Interpreter Agent & Live Python Sandbox (`{target_repo['full_repo']}`)"
             )
@@ -3872,9 +3897,9 @@ def render_master_dashboard() -> None:
                 st.code(cli_snippet, language="bash")
 
         # -------------------------------------------------------------
-        # SUB-TAB 5: ANTIGRAVITY-MODE — CRITIC Q&A, LIVE FILE EDITOR & DIRECT GITHUB COMMIT
+        # SUB-TILE 5: ANTIGRAVITY-MODE — CRITIC Q&A, LIVE FILE EDITOR & DIRECT GITHUB COMMIT
         # -------------------------------------------------------------
-        with sub_ag:
+        elif active_oi_sub_tile == 4:
             st.markdown(
                 "#### 🛠️ Antigravity-Mode Engineering Console — Ask Questions, Run Brutal Critic Analysis & Commit Code Changes Directly to GitHub"
             )
@@ -4177,9 +4202,9 @@ def render_master_dashboard() -> None:
                 )
 
     # =================================================================
-    # TAB 7: PORTFOLIO HOLDINGS CRITIC, FII/DII TREND & BACKTESTED REPLACEMENTS
+    # TILE 7: PORTFOLIO HOLDINGS CRITIC, FII/DII TREND & BACKTESTED REPLACEMENTS
     # =================================================================
-    with tab_portfolio:
+    elif active_main_tile == 6:
         render_portfolio_holdings_analytics_tab(key_prefix="admin_port_lab")
 
 

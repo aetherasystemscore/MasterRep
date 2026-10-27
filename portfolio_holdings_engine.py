@@ -39,6 +39,121 @@ import pandas as pd
 import streamlit as st
 import yfinance as yf
 
+
+# =====================================================================
+# 0. INDIAN CURRENCY FORMATTER (10,10,100.00 — LAKH, THOUSAND, HUNDRED)
+#    & 2-ROW 1.5x PERMANENT FIXED TILE NAVIGATION HELPER
+# =====================================================================
+def format_indian_currency(
+    val: Any,
+    decimals: int = 2,
+    prefix: str = "₹",
+    signed: bool = False,
+) -> str:
+    """
+    Formats a numeric value using the Indian Currency Numbering System:
+    Lakhs & Crores (2-digit grouping after the rightmost 3 digits), e.g.:
+      1010100      -> '₹10,10,100.00'
+      355258.64    -> '₹3,55,258.64'
+      -88246.14    -> '-₹88,246.14'
+      5534129.45   -> '₹55,34,129.45'
+    """
+    if val is None:
+        return "—"
+    try:
+        num = float(val)
+        if math.isnan(num) or math.isinf(num):
+            return "—"
+    except Exception:
+        return str(val)
+
+    is_neg = num < 0
+    abs_num = abs(num)
+    if decimals > 0:
+        formatted = f"{abs_num:.{decimals}f}"
+        int_part, dec_part = formatted.split(".")
+        dec_suffix = f".{dec_part}"
+    else:
+        int_part = f"{int(round(abs_num))}"
+        dec_suffix = ""
+
+    if len(int_part) > 3:
+        last_three = int_part[-3:]
+        other_digits = int_part[:-3]
+        groups: List[str] = []
+        while len(other_digits) > 2:
+            groups.insert(0, other_digits[-2:])
+            other_digits = other_digits[:-2]
+        if other_digits:
+            groups.insert(0, other_digits)
+        indian_int = ",".join(groups) + "," + last_three
+    else:
+        indian_int = int_part
+
+    sign_str = "-" if is_neg else ("+" if (signed and abs_num > 0) else "")
+    return f"{sign_str}{prefix}{indian_int}{dec_suffix}"
+
+
+def render_two_row_fixed_tiles(
+    tile_labels: List[str],
+    state_key: str,
+    row1_count: Optional[int] = None,
+) -> int:
+    """
+    Renders a permanently visible Two-Row Fixed Tile Navigation Grid (1.5x larger size).
+    Unlike `st.tabs` (which collapses into a single horizontal scrolling bar with a `>` overflow arrow),
+    this renders two physical stacked rows using `st.columns` + `st.button` inside a bordered container
+    so ALL tiles remain 100% visible on screen at all times:
+      - Selected Tile (`type="primary"`): Warm Amber-Gold Tile with extra-bold underlined text
+      - Unselected Tile (`type="secondary"`): Sky-Blue Tile with bold dark navy text
+    """
+    n_tiles = len(tile_labels)
+    if state_key not in st.session_state or not (0 <= int(st.session_state[state_key]) < n_tiles):
+        st.session_state[state_key] = 0
+    active_idx = int(st.session_state[state_key])
+
+    if row1_count is None:
+        row1_count = 4 if n_tiles >= 6 else (3 if n_tiles >= 4 else n_tiles)
+
+    row1_labels = tile_labels[:row1_count]
+    row2_labels = tile_labels[row1_count:]
+
+    with st.container(border=True):
+        st.markdown('<div class="fixed-tile-nav-marker"></div>', unsafe_allow_html=True)
+        # Row 1 of Fixed Tiles
+        cols_r1 = st.columns(len(row1_labels), gap="medium")
+        for idx, lbl in enumerate(row1_labels):
+            is_sel = idx == active_idx
+            btn_lbl = f"🟡 {lbl}" if is_sel else lbl
+            with cols_r1[idx]:
+                if st.button(
+                    btn_lbl,
+                    key=f"{state_key}_tile_btn_{idx}",
+                    type="primary" if is_sel else "secondary",
+                    use_container_width=True,
+                ):
+                    st.session_state[state_key] = idx
+                    st.rerun()
+
+        # Row 2 of Fixed Tiles (when more than row1_count tiles exist)
+        if row2_labels:
+            cols_r2 = st.columns(len(row2_labels), gap="medium")
+            for offset, lbl in enumerate(row2_labels):
+                idx = row1_count + offset
+                is_sel = idx == active_idx
+                btn_lbl = f"🟡 {lbl}" if is_sel else lbl
+                with cols_r2[offset]:
+                    if st.button(
+                        btn_lbl,
+                        key=f"{state_key}_tile_btn_{idx}",
+                        type="primary" if is_sel else "secondary",
+                        use_container_width=True,
+                    ):
+                        st.session_state[state_key] = idx
+                        st.rerun()
+    return int(st.session_state[state_key])
+
+
 # =====================================================================
 # 1. PRE-LOADED USER HOLDINGS (EXACT 102 ZERODHA HOLDINGS FROM USER)
 # =====================================================================
@@ -758,13 +873,17 @@ def parse_uploaded_holdings_file(
             cur_val = round(qty * ltp, 2) if cur_val <= 0 else cur_val
             pnl = round(cur_val - invested, 2)
             net_chg = round((pnl / invested) * 100.0, 2) if invested > 0 else 0.0
-            broker_flag = f"Repaired Avg. Cost=0 (Imputed Par ₹{par_guess:,.0f})"
+            broker_flag = f"Repaired Avg. Cost=0 (Imputed Par {format_indian_currency(par_guess, decimals=2)})"
             anomalies_repaired.append(
                 {
                     "Instrument": sym,
                     "Broker Feed Anomaly": "Avg. cost = 0 & Invested = 0 in Broker Export",
                     "Root Cause": "Off-market NCD primary allotment / demat corporate action transfer",
-                    "Automated Critic Fix": f"Imputed par cost ₹{avg_cost:,.2f} (Invested ₹{invested:,.2f}, Corrected P&L ₹{pnl:+,.2f})",
+                    "Automated Critic Fix": (
+                        f"Imputed par cost {format_indian_currency(avg_cost, decimals=2)} "
+                        f"(Invested {format_indian_currency(invested, decimals=2)}, "
+                        f"Corrected P&L {format_indian_currency(pnl, decimals=2, signed=True)})"
+                    ),
                 }
             )
 
@@ -776,13 +895,16 @@ def parse_uploaded_holdings_file(
             pnl = round(cur_val - invested, 2)
             net_chg = round((pnl / invested) * 100.0, 2) if invested > 0 else 0.0
             day_chg = 0.0
-            broker_flag = f"Repaired Illiquid SDL LTP=0 (Fair Par ₹{fair_ltp:,.2f})"
+            broker_flag = f"Repaired Illiquid SDL LTP=0 (Fair Par {format_indian_currency(fair_ltp, decimals=2)})"
             anomalies_repaired.append(
                 {
                     "Instrument": sym,
-                    "Broker Feed Anomaly": "LTP = 0 & Cur. val = ₹0 (-100% Phantom Loss)",
+                    "Broker Feed Anomaly": "LTP = 0 & Cur. val = ₹0.00 (-100% Phantom Loss)",
                     "Root Cause": "Zero secondary-market trades today on NSE Debt segment for State Govt SDL",
-                    "Automated Critic Fix": f"Restored Sovereign Par Mark-to-Market ₹{ltp:,.2f} (Cur. Val ₹{cur_val:,.2f} instead of ₹0)",
+                    "Automated Critic Fix": (
+                        f"Restored Sovereign Par Mark-to-Market {format_indian_currency(ltp, decimals=2)} "
+                        f"(Cur. Val {format_indian_currency(cur_val, decimals=2)} instead of ₹0.00)"
+                    ),
                 }
             )
 
@@ -936,7 +1058,19 @@ def compute_technical_and_backtest_metrics(
         "day_chg_pct": 0.0,
         "sma_50": None,
         "sma_200": None,
+        "dist_50dma_pct": 0.0,
+        "dist_200dma_pct": 0.0,
         "rsi_14": 50.0,
+        "rsi_signal": "🔵 Neutral (40-55)",
+        "macd_line": 0.0,
+        "macd_signal_line": 0.0,
+        "macd_hist": 0.0,
+        "macd_status": "🔵 Neutral / Sovereign",
+        "high_52w": None,
+        "low_52w": None,
+        "off_52w_high_pct": 0.0,
+        "bb_pct_b": 50.0,
+        "beta_nifty": 1.0,
         "ret_1m_pct": 0.0,
         "ret_3m_pct": 0.0,
         "ret_6m_pct": 0.0,
@@ -974,8 +1108,10 @@ def compute_technical_and_backtest_metrics(
 
     sma_50 = float(s.tail(50).mean()) if len(s) >= 20 else live_ltp
     sma_200 = float(s.tail(200).mean()) if len(s) >= 60 else sma_50
+    dist_50dma_pct = ((live_ltp / sma_50) - 1.0) * 100.0 if sma_50 > 0 else 0.0
+    dist_200dma_pct = ((live_ltp / sma_200) - 1.0) * 100.0 if sma_200 > 0 else 0.0
 
-    # RSI-14
+    # RSI-14 & RSI Regime Signal
     delta = s.diff()
     gain = delta.clip(lower=0).tail(14).mean()
     loss = (-delta.clip(upper=0)).tail(14).mean()
@@ -984,6 +1120,51 @@ def compute_technical_and_backtest_metrics(
     else:
         rs = gain / loss
         rsi_14 = float(100.0 - (100.0 / (1.0 + rs)))
+
+    if rsi_14 >= 70.0:
+        rsi_signal = "🔥 Overbought (>70)"
+    elif rsi_14 >= 55.0:
+        rsi_signal = "🟢 Bullish Momentum (55-70)"
+    elif rsi_14 >= 40.0:
+        rsi_signal = "🔵 Neutral Zone (40-55)"
+    elif rsi_14 >= 30.0:
+        rsi_signal = "🟠 Weak / Pullback (30-40)"
+    else:
+        rsi_signal = "🟣 Oversold (<30)"
+
+    # MACD (12, 26, 9) & Signal Crossover Status
+    ema_12 = s.ewm(span=12, adjust=False).mean()
+    ema_26 = s.ewm(span=26, adjust=False).mean()
+    macd_series = ema_12 - ema_26
+    macd_sig_series = macd_series.ewm(span=9, adjust=False).mean()
+    macd_hist_series = macd_series - macd_sig_series
+    macd_line = float(macd_series.iloc[-1])
+    macd_signal_line = float(macd_sig_series.iloc[-1])
+    macd_hist = float(macd_hist_series.iloc[-1])
+    if macd_line >= macd_signal_line and macd_hist > 0 and macd_line > 0:
+        macd_status = "🟢 Bullish Above Zero (+MACD)"
+    elif macd_line >= macd_signal_line:
+        macd_status = "🔵 Bullish Crossover (Recovering)"
+    elif macd_line < macd_signal_line and macd_line < 0:
+        macd_status = "🔴 Bearish Below Zero (-MACD)"
+    else:
+        macd_status = "🟠 Bearish Pullback"
+
+    # 52-Week High / Low & % Distance from 52W High + Bollinger Band %B (20D, 2σ)
+    s_252 = s.tail(min(252, len(s)))
+    high_52w = float(s_252.max())
+    low_52w = float(s_252.min())
+    off_52w_high_pct = ((live_ltp / high_52w) - 1.0) * 100.0 if high_52w > 0 else 0.0
+
+    s_20 = s.tail(min(20, len(s)))
+    bb_mid = float(s_20.mean())
+    bb_std = float(s_20.std()) if len(s_20) >= 5 else 0.0
+    if bb_std > 0:
+        bb_upper = bb_mid + 2.0 * bb_std
+        bb_lower = bb_mid - 2.0 * bb_std
+        bb_pct_b = max(0.0, min(120.0, ((live_ltp - bb_lower) / max(1e-6, bb_upper - bb_lower)) * 100.0))
+    else:
+        bb_pct_b = 50.0
 
     def _period_ret(days: int) -> float:
         if len(s) > days and float(s.iloc[-1 - days]) > 0:
@@ -995,7 +1176,7 @@ def compute_technical_and_backtest_metrics(
     ret_6m = _period_ret(126)
     ret_1y = _period_ret(min(252, len(s) - 1))
 
-    # Benchmark NIFTY 50 comparison over the backtest window
+    # Benchmark NIFTY 50 comparison over the backtest window + Live Beta vs ^NSEI
     bt_slice = s.tail(max(20, min(lookback_days, len(s))))
     bt_ret_series = bt_slice.pct_change().dropna()
     n_days = max(1, len(bt_ret_series))
@@ -1017,12 +1198,20 @@ def compute_technical_and_backtest_metrics(
     bt_max_dd = float(dd_series.min()) if not dd_series.empty else 0.0
     bt_win_days = float((bt_ret_series > 0).mean() * 100.0) if len(bt_ret_series) > 0 else 50.0
 
-    # Relative Alpha vs ^NSEI over the same backtest window
+    # Relative Alpha & Beta vs ^NSEI over the same backtest window
     nifty_ret = 0.0
+    beta_nifty = 1.0
     if "^NSEI" in close_df.columns:
         ns = close_df["^NSEI"].dropna().reindex(bt_slice.index).dropna()
         if len(ns) >= 5 and float(ns.iloc[0]) > 0:
             nifty_ret = float(((ns.iloc[-1] / ns.iloc[0]) - 1.0) * 100.0)
+            n_rets = ns.pct_change().dropna()
+            aligned = pd.concat([bt_ret_series, n_rets], axis=1).dropna()
+            if len(aligned) >= 15:
+                var_mkt = float(aligned.iloc[:, 1].var())
+                if var_mkt > 1e-9:
+                    cov_sm = float(aligned.iloc[:, 0].cov(aligned.iloc[:, 1]))
+                    beta_nifty = round(max(-0.5, min(2.8, cov_sm / var_mkt)), 2)
     alpha_vs_nifty = bt_total_ret - nifty_ret
 
     # Composite Technical Score (0–100)
@@ -1072,7 +1261,19 @@ def compute_technical_and_backtest_metrics(
         "day_chg_pct": round(day_chg_pct, 2),
         "sma_50": round(sma_50, 2),
         "sma_200": round(sma_200, 2),
+        "dist_50dma_pct": round(dist_50dma_pct, 2),
+        "dist_200dma_pct": round(dist_200dma_pct, 2),
         "rsi_14": round(rsi_14, 1),
+        "rsi_signal": rsi_signal,
+        "macd_line": round(macd_line, 2),
+        "macd_signal_line": round(macd_signal_line, 2),
+        "macd_hist": round(macd_hist, 2),
+        "macd_status": macd_status,
+        "high_52w": round(high_52w, 2),
+        "low_52w": round(low_52w, 2),
+        "off_52w_high_pct": round(off_52w_high_pct, 2),
+        "bb_pct_b": round(bb_pct_b, 1),
+        "beta_nifty": round(beta_nifty, 2),
         "ret_1m_pct": round(ret_1m, 2),
         "ret_3m_pct": round(ret_3m, 2),
         "ret_6m_pct": round(ret_6m, 2),
@@ -1535,7 +1736,8 @@ def select_best_backtested_alternate(
         f"Backtested {best['symbol']} ({best['name']}) delivered {best['bt_cagr_pct']:+.1f}% CAGR "
         f"(Sharpe {best['bt_sharpe']:.2f}, MaxDD {best['bt_max_dd_pct']:.1f}%) vs {holding_sym}'s "
         f"{holding_bt_cagr:+.1f}% CAGR (Sharpe {holding_bt_sharpe:.2f}) → "
-        f"{cagr_diff:+.1f}% CAGR Alpha (+₹{est_profit_uplift:,.0f} backtested gain on ₹{holding_cur_val:,.0f})"
+        f"{cagr_diff:+.1f}% CAGR Alpha ({format_indian_currency(est_profit_uplift, decimals=2, signed=True)} "
+        f"backtested gain on {format_indian_currency(holding_cur_val, decimals=2)})"
     )
 
     return {
@@ -1721,7 +1923,18 @@ def run_iterative_expert_critic_portfolio_analytics(
                 "Technical_Regime": t_met["tech_regime"],
                 "SMA_50": t_met["sma_50"],
                 "SMA_200": t_met["sma_200"],
+                "Dist_50DMA_Pct": t_met["dist_50dma_pct"],
+                "Dist_200DMA_Pct": t_met["dist_200dma_pct"],
                 "RSI_14": t_met["rsi_14"],
+                "RSI_Signal": t_met["rsi_signal"],
+                "MACD_Line": t_met["macd_line"],
+                "MACD_Hist": t_met["macd_hist"],
+                "MACD_Status": t_met["macd_status"],
+                "High_52W": t_met["high_52w"],
+                "Low_52W": t_met["low_52w"],
+                "Off_52W_High_Pct": t_met["off_52w_high_pct"],
+                "BB_Pct_B": t_met["bb_pct_b"],
+                "Beta_Nifty": t_met["beta_nifty"],
                 "Ret_1M_Pct": t_met["ret_1m_pct"],
                 "Ret_3M_Pct": t_met["ret_3m_pct"],
                 "Ret_6M_Pct": t_met["ret_6m_pct"],
@@ -1762,7 +1975,7 @@ def run_iterative_expert_critic_portfolio_analytics(
                 {
                     "ETF Overlap Cluster": leader["Cluster_Label"],
                     "Holdings Count": len(members_sorted),
-                    "Combined Value (₹)": round(total_cl_val, 2),
+                    "Combined Value (₹)": format_indian_currency(total_cl_val, decimals=2),
                     "Keep Leader (#1 Backtested)": f"{leader['Instrument']} (CAGR {leader['BT_CAGR_Pct']:+.1f}%, Sharpe {leader['BT_Sharpe']:.2f})",
                     "Consolidate / Replace Duplicates": ", ".join(redundant_syms),
                     "Expert Critic Rationale": (
@@ -1791,9 +2004,9 @@ def run_iterative_expert_critic_portfolio_analytics(
                 {
                     "Corporate Action Family": fam_meta["headline"],
                     "Holdings in Portfolio": ", ".join(present_members),
-                    "Combined Invested (₹)": round(fam_inv, 2),
-                    "Combined Current Value (₹)": round(fam_cur, 2),
-                    "True Combined P&L (₹)": round(fam_pnl, 2),
+                    "Combined Invested (₹)": format_indian_currency(fam_inv, decimals=2),
+                    "Combined Current Value (₹)": format_indian_currency(fam_cur, decimals=2),
+                    "True Combined P&L (₹)": format_indian_currency(fam_pnl, decimals=2, signed=True),
                     "True Combined Return (%)": round(fam_pct, 2),
                     "Expert Critic Diagnostic": fam_meta["explanation"],
                 }
@@ -1902,7 +2115,7 @@ def run_iterative_expert_critic_portfolio_analytics(
             cat_6 = "6. 🟣 Corporate Action / Bond Audit"
             alt_ticker_display = f"{alt_bundle['alt_symbol']} ({alt_bundle['alt_name']})"
             action_summary = (
-                f"EXIT DEMERGED STUB → Consolidate ₹{cur_val:,.0f} into VAML/VEDL or {alt_bundle['alt_symbol']} "
+                f"EXIT DEMERGED STUB → Consolidate {format_indian_currency(cur_val, decimals=2)} into VAML/VEDL or {alt_bundle['alt_symbol']} "
                 f"({alt_bundle['alt_cagr_pct']:+.1f}% backtested CAGR)"
             )
         elif sym == "VAML":
@@ -1939,7 +2152,7 @@ def run_iterative_expert_critic_portfolio_analytics(
                 else f"{sym} (#1 Sector Leader)"
             )
             action_summary = (
-                f"KEEP & ACCUMULATE ON DIPS — Strong Winner ({net_chg:+.1f}% P&L, Composite {comp:.1f}/100), "
+                f"KEEP & ACCUMULATE ON DIPS — Strong Winner ({net_chg:+.1f}% P&L, Composite {comp:.1f}/100, RSI {r['RSI_14']:.1f}), "
                 f"Backtest CAGR {r['BT_CAGR_Pct']:+.1f}%, {r['FII_DII_Trend']}"
             )
         elif sym not in core_compounders and (
@@ -1951,7 +2164,7 @@ def run_iterative_expert_critic_portfolio_analytics(
             cat_6 = "4. 🔴 Exit"
             alt_ticker_display = f"{alt_bundle['alt_symbol']} ({alt_bundle['alt_name']})"
             action_summary = (
-                f"EXIT & REALLOCATE → Severe drawdown ({net_chg:+.1f}%) + Weak Tech/Flow. "
+                f"EXIT & REALLOCATE → Severe drawdown ({net_chg:+.1f}%, RSI {r['RSI_14']:.1f}) + Weak Tech/Flow. "
                 f"Reallocate to `{alt_bundle['alt_symbol']}` ({alt_bundle['cagr_uplift_pct']:+.1f}% CAGR uplift)"
             )
         elif (
@@ -1968,7 +2181,7 @@ def run_iterative_expert_critic_portfolio_analytics(
             alt_ticker_display = f"{alt_bundle['alt_symbol']} ({alt_bundle['alt_name']})"
             action_summary = (
                 f"REPLACE WITH PEER LEADER → Switch to `{alt_bundle['alt_symbol']}` for "
-                f"{alt_bundle['cagr_uplift_pct']:+.1f}% higher backtested CAGR (+₹{alt_bundle['est_profit_uplift_inr']:,.0f})"
+                f"{alt_bundle['cagr_uplift_pct']:+.1f}% higher backtested CAGR ({format_indian_currency(alt_bundle['est_profit_uplift_inr'], decimals=2, signed=True)})"
             )
         else:
             cat_4 = "2. 🔵 Hold"
@@ -1980,12 +2193,12 @@ def run_iterative_expert_critic_portfolio_analytics(
             )
             if sym in ("ITC", "HDFCBANK", "TCS", "HINDUNILVR", "VEDL"):
                 action_summary = (
-                    f"HOLD CORE COMPOUNDER — Quality franchise (Fund {f_sc:.0f}/100); "
+                    f"HOLD CORE COMPOUNDER — Quality franchise (Fund {f_sc:.0f}/100, RSI {r['RSI_14']:.1f}); "
                     f"avoid panic selling at cyclical trough ({ DEMERGER_AND_CORP_ACTION_FAMILIES[sym]['headline'] if sym in DEMERGER_AND_CORP_ACTION_FAMILIES else 'High Institutional Ownership' })"
                 )
             else:
                 action_summary = (
-                    f"HOLD — Balanced risk/reward (Composite {comp:.1f}/100, Backtest CAGR {r['BT_CAGR_Pct']:+.1f}%)"
+                    f"HOLD — Balanced risk/reward (Composite {comp:.1f}/100, RSI {r['RSI_14']:.1f}, Backtest CAGR {r['BT_CAGR_Pct']:+.1f}%)"
                 )
 
         iter3_counts[cat_4] = iter3_counts.get(cat_4, 0) + 1
@@ -2032,9 +2245,20 @@ def run_iterative_expert_critic_portfolio_analytics(
                 "Div_Yield_Pct": r["Div_Yield_Pct"],
                 "Fundamental_Summary": r["Fundamental_Summary"],
                 "Technical_Regime": r["Technical_Regime"],
+                "RSI_14": r["RSI_14"],
+                "RSI_Signal": r["RSI_Signal"],
+                "MACD_Status": r["MACD_Status"],
+                "MACD_Line": r["MACD_Line"],
+                "MACD_Hist": r["MACD_Hist"],
                 "SMA_50": r["SMA_50"],
                 "SMA_200": r["SMA_200"],
-                "RSI_14": r["RSI_14"],
+                "Dist_50DMA_Pct": r["Dist_50DMA_Pct"],
+                "Dist_200DMA_Pct": r["Dist_200DMA_Pct"],
+                "High_52W": r["High_52W"],
+                "Low_52W": r["Low_52W"],
+                "Off_52W_High_Pct": r["Off_52W_High_Pct"],
+                "BB_Pct_B": r["BB_Pct_B"],
+                "Beta_Nifty": r["Beta_Nifty"],
                 "Ret_1M_Pct": r["Ret_1M_Pct"],
                 "Ret_3M_Pct": r["Ret_3M_Pct"],
                 "Ret_6M_Pct": r["Ret_6M_Pct"],
@@ -2045,6 +2269,7 @@ def run_iterative_expert_critic_portfolio_analytics(
                 "BT_Sharpe": r["BT_Sharpe"],
                 "BT_Sortino": r["BT_Sortino"],
                 "BT_MaxDD_Pct": r["BT_MaxDD_Pct"],
+                "BT_Volatility_Pct": r["BT_Volatility_Pct"],
                 "Alternate_Ticker": alt_bundle["alt_symbol"],
                 "Alternate_Display": alt_ticker_display,
                 "Alt_BT_CAGR_Pct": alt_bundle["alt_cagr_pct"],
@@ -2136,7 +2361,7 @@ def run_iterative_expert_critic_portfolio_analytics(
             "Expert Focus": "Live ROE/Margins/PE + Institutional Volume CMF + Demerger & Bond Par Repair",
             "Distribution": f"Accumulate: {iter2_counts['Accumulate']} | Hold: {iter2_counts['Hold']} | Replace: {iter2_counts['Replace']} | Exit: {iter2_counts['Exit']}",
             "Critic Flaw Identified": (
-                "Restored ₹1,00,070 of illiquid State Govt SDLs (`771UP46-SG`, `77AP47-SG`) and imputed par cost for `1125MML27`/`925MFL32A`. "
+                "Restored ₹1,00,070.00 of illiquid State Govt SDLs (`771UP46-SG`, `77AP47-SG`) and imputed par cost for `1125MML27`/`925MFL32A`. "
                 "Reclassified VEDL+VAML demerger family and protected high-ROE blue chips, but still left 22 overlapping factor/sector ETFs un-consolidated."
             ),
             "Portfolio Backtest CAGR": f"{(weighted_cur_cagr + weighted_opt_cagr) / 2.0:+.2f}%",
@@ -2152,7 +2377,7 @@ def run_iterative_expert_critic_portfolio_analytics(
             ),
             "Critic Flaw Identified": (
                 f"Consolidated duplicate Alpha/Momentum, NV20/Quality, Consumption & Nifty ETFs into their #1 backtested cluster leader, "
-                f"and paired every Exit/Replace stock with a live-backtested peer delivering +{weighted_opt_cagr - weighted_cur_cagr:.2f}% portfolio CAGR uplift (+₹{total_est_uplift_inr:,.0f}/period)."
+                f"and paired every Exit/Replace stock with a live-backtested peer delivering +{weighted_opt_cagr - weighted_cur_cagr:.2f}% portfolio CAGR uplift ({format_indian_currency(total_est_uplift_inr, decimals=2, signed=True)}/period)."
             ),
             "Portfolio Backtest CAGR": f"{weighted_opt_cagr:+.2f}% (+{weighted_opt_cagr - weighted_cur_cagr:.2f}% Alpha)",
         },
@@ -2172,7 +2397,7 @@ def run_iterative_expert_critic_portfolio_analytics(
                     "Company / ETF Name": v["name"],
                     "Asset Class": v["asset_class"],
                     "Sector / Cluster": v["cluster"],
-                    "Live LTP (₹)": v["live_ltp"],
+                    "Live LTP (₹)": format_indian_currency(v["live_ltp"], decimals=2),
                     "Composite Score": v["composite_score"],
                     "Fundamental Score": v["fund_score"],
                     "Technical Score": v["tech_score"],
@@ -2362,10 +2587,10 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
     cat6_counts: Dict[str, int] = summary["cat6_counts"]
 
     # -----------------------------------------------------------------
-    # STEP 2: EXECUTIVE KPI SUMMARY STRIP
+    # STEP 2: EXECUTIVE KPI SUMMARY STRIP (INDIAN CURRENCY COMMA SYSTEM)
     # -----------------------------------------------------------------
     st.markdown(
-        f"#### 📊 Executive Portfolio & Live Backtest Diagnostics *(Synced: `{summary['fetched_at_ist']}` • Window: `{summary['lookback_label']}`)*"
+        f"#### 📊 Executive Portfolio & Live Backtest Diagnostics *(Synced: `{summary['fetched_at_ist']}` • Window: `{summary['lookback_label']}` • Indian Currency Format: `10,10,100.00`)*"
     )
     m1, m2, m3, m4, m5, m6 = st.columns(6)
     m1.metric(
@@ -2375,13 +2600,13 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
     )
     m2.metric(
         "Corrected Invested Capital",
-        f"₹{summary['total_invested']:,.0f}",
+        format_indian_currency(summary["total_invested"], decimals=2),
         "Includes Imputed NCD Par Cost",
     )
     m3.metric(
         "Live / Corrected Portfolio Value",
-        f"₹{summary['total_cur_val']:,.0f}",
-        f"Net P&L: ₹{summary['total_pnl']:+,.0f} ({summary['total_ret_pct']:+.2f}%)",
+        format_indian_currency(summary["total_cur_val"], decimals=2),
+        f"Net P&L: {format_indian_currency(summary['total_pnl'], decimals=2, signed=True)} ({summary['total_ret_pct']:+.2f}%)",
     )
     m4.metric(
         "Current Portfolio Backtest CAGR",
@@ -2395,7 +2620,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
     )
     m6.metric(
         "Est. Backtested Profit Uplift",
-        f"+₹{summary['total_est_uplift_inr']:,.0f}",
+        format_indian_currency(summary["total_est_uplift_inr"], decimals=2, signed=True),
         "From Exit/Replace Switches",
     )
 
@@ -2419,7 +2644,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             <div class="repo-card" style="border-left: 6px solid #16a34a; background:#f0fdf4; padding:0.85rem 1rem;">
                 <div style="font-weight:800; color:#14532d; font-size:1.05rem;">1. 🟢 ACCUMULATE (KEEP &amp; ADD)</div>
                 <div style="font-size:1.55rem; font-weight:900; color:#0f172a; margin:0.2rem 0;">{c_acc} Holdings</div>
-                <div style="color:#166534; font-weight:700; font-size:0.9rem;">Value: ₹{val_acc:,.0f} ({val_acc/max(1,summary['total_cur_val'])*100:.1f}%)</div>
+                <div style="color:#166534; font-weight:700; font-size:0.9rem;">Value: {format_indian_currency(val_acc, decimals=2)} ({val_acc/max(1,summary['total_cur_val'])*100:.1f}%)</div>
                 <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">High Fundamental + Technical Score + FII/DII Accumulation &amp; Positive Alpha.</div>
             </div>
             """,
@@ -2431,7 +2656,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             <div class="repo-card" style="border-left: 6px solid #2563eb; background:#eff6ff; padding:0.85rem 1rem;">
                 <div style="font-weight:800; color:#1e3a8a; font-size:1.05rem;">2. 🔵 HOLD (CORE &amp; YIELD)</div>
                 <div style="font-size:1.55rem; font-weight:900; color:#0f172a; margin:0.2rem 0;">{c_hld} Holdings</div>
-                <div style="color:#1d4ed8; font-weight:700; font-size:0.9rem;">Value: ₹{val_hld:,.0f} ({val_hld/max(1,summary['total_cur_val'])*100:.1f}%)</div>
+                <div style="color:#1d4ed8; font-weight:700; font-size:0.9rem;">Value: {format_indian_currency(val_hld, decimals=2)} ({val_hld/max(1,summary['total_cur_val'])*100:.1f}%)</div>
                 <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">Core Blue-Chips, Sovereign Gold/SDLs, AAA/AA NCDs &amp; Cash-Yielding REITs/InvITs.</div>
             </div>
             """,
@@ -2443,7 +2668,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             <div class="repo-card" style="border-left: 6px solid #d97706; background:#fffbeb; padding:0.85rem 1rem;">
                 <div style="font-weight:800; color:#78350f; font-size:1.05rem;">3. 🔄 REPLACE (SWITCH UPGRADE)</div>
                 <div style="font-size:1.55rem; font-weight:900; color:#0f172a; margin:0.2rem 0;">{c_rep} Holdings</div>
-                <div style="color:#b45309; font-weight:700; font-size:0.9rem;">Value: ₹{val_rep:,.0f} ({val_rep/max(1,summary['total_cur_val'])*100:.1f}%) • Includes {c_ovl} Dup ETFs</div>
+                <div style="color:#b45309; font-weight:700; font-size:0.9rem;">Value: {format_indian_currency(val_rep, decimals=2)} ({val_rep/max(1,summary['total_cur_val'])*100:.1f}%) • Includes {c_ovl} Dup ETFs</div>
                 <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">Laggards &amp; overlapping ETFs where a live-backtested peer delivers higher Sharpe &amp; CAGR.</div>
             </div>
             """,
@@ -2455,7 +2680,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             <div class="repo-card" style="border-left: 6px solid #dc2626; background:#fef2f2; padding:0.85rem 1rem;">
                 <div style="font-weight:800; color:#7f1d1d; font-size:1.05rem;">4. 🔴 EXIT (LIQUIDATE &amp; REDEPLOY)</div>
                 <div style="font-size:1.55rem; font-weight:900; color:#0f172a; margin:0.2rem 0;">{c_ext} Holdings</div>
-                <div style="color:#b91c1c; font-weight:700; font-size:0.9rem;">Capital Freed: ₹{val_ext:,.0f} ({val_ext/max(1,summary['total_cur_val'])*100:.1f}%)</div>
+                <div style="color:#b91c1c; font-weight:700; font-size:0.9rem;">Capital Freed: {format_indian_currency(val_ext, decimals=2)} ({val_ext/max(1,summary['total_cur_val'])*100:.1f}%)</div>
                 <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">Severe Stage-4 technical &amp; earnings breakdown + sub-scale demerged stubs ({c_aud} Corp Audit).</div>
             </div>
             """,
@@ -2474,18 +2699,10 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         st.dataframe(res["critic_iteration_df"], use_container_width=True, hide_index=True)
 
     # -----------------------------------------------------------------
-    # STEP 4: DEDICATED ANALYTICS VIEWS (PERMANENT TILES)
+    # STEP 4: DEDICATED ANALYTICS VIEWS (TWO-ROW FIXED TILE GRID — 1.5X SIZE)
     # -----------------------------------------------------------------
-    st.markdown("#### 🧭 Portfolio Analytics & Replacement Explorer")
-    (
-        sub_all,
-        sub_acc,
-        sub_hold,
-        sub_rep,
-        sub_exit,
-        sub_special,
-        sub_bt,
-    ) = st.tabs(
+    st.markdown("#### 🧭 Portfolio Analytics & Replacement Explorer *(Two-Row Always-Visible Fixed Tile Bar — Click Any Tile)*")
+    active_sub_idx = render_two_row_fixed_tiles(
         [
             f"📊 All Holdings Master Scorecard ({len(analytics_df)})",
             f"🟢 1. Accumulate ({c_acc})",
@@ -2494,7 +2711,9 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             f"🔴 4. Exit ({c_ext})",
             f"🟣 5 & 6. ETF Overlap & Demerger/Bond Audit ({c_ovl + c_aud})",
             "📈 Live Walk-Forward Backtest & Switch Simulator",
-        ]
+        ],
+        state_key=f"{key_prefix}_sub_nav_tile",
+        row1_count=4,
     )
 
     display_cols = [
@@ -2503,52 +2722,120 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         "Primary_Category",
         "Expert_Category_6",
         "Qty.",
-        "Avg. cost",
-        "Live_LTP",
-        "Invested",
-        "Cur. val",
-        "P&L",
+        "Avg. cost (₹)",
+        "Live LTP (₹)",
+        "Invested (₹)",
+        "Cur. val (₹)",
+        "P&L (₹)",
         "Net chg. %",
         "Composite_Score",
         "Fundamental_Score",
         "Technical_Score",
         "FII_DII_Score",
+        "RSI_14",
+        "RSI_Signal",
+        "MACD_Status",
+        "50-DMA (₹)",
+        "200-DMA (₹)",
+        "Dist_50DMA_Pct",
+        "Dist_200DMA_Pct",
+        "Off_52W_High_Pct",
+        "BB_Pct_B",
+        "Beta_Nifty",
+        "BT_Volatility_Pct",
+        "BT_MaxDD_Pct",
+        "Ret_1M_Pct",
+        "Ret_3M_Pct",
+        "Ret_6M_Pct",
+        "Ret_1Y_Pct",
+        "Alpha_vs_Nifty_Pct",
+        "PE_Ratio",
+        "PB_Ratio",
+        "ROE_Pct",
+        "Div_Yield_Pct",
+        "Inst_Hold_Pct",
+        "Promoter_Hold_Pct",
+        "Vol_Acc_Ratio_20D",
+        "CMF_20D",
         "FII_DII_Trend",
         "BT_CAGR_Pct",
         "BT_Sharpe",
         "Alternate_Display",
         "Alt_BT_CAGR_Pct",
         "CAGR_Uplift_Pct",
-        "Est_Profit_Uplift_INR",
+        "Backtested Profit Uplift (₹)",
         "Action_Recommendation",
         "Related_Information",
     ]
 
+    def _format_df_for_indian_display(df_in: pd.DataFrame) -> pd.DataFrame:
+        """
+        Formats all currency columns using the Indian numbering system (`₹10,10,100.00` — Lakh, Thousand, Hundred.00)
+        AFTER numeric sorting has already been applied.
+        """
+        out = df_in.copy()
+        out["Avg. cost (₹)"] = out["Avg. cost"].apply(lambda v: format_indian_currency(v, decimals=2))
+        out["Live LTP (₹)"] = out["Live_LTP"].apply(lambda v: format_indian_currency(v, decimals=2))
+        out["Invested (₹)"] = out["Invested"].apply(lambda v: format_indian_currency(v, decimals=2))
+        out["Cur. val (₹)"] = out["Cur. val"].apply(lambda v: format_indian_currency(v, decimals=2))
+        out["P&L (₹)"] = out["P&L"].apply(lambda v: format_indian_currency(v, decimals=2, signed=True))
+        out["Backtested Profit Uplift (₹)"] = out["Est_Profit_Uplift_INR"].apply(
+            lambda v: format_indian_currency(v, decimals=2, signed=True)
+        )
+        out["50-DMA (₹)"] = out["SMA_50"].apply(lambda v: format_indian_currency(v, decimals=2))
+        out["200-DMA (₹)"] = out["SMA_200"].apply(lambda v: format_indian_currency(v, decimals=2))
+        return out[display_cols]
+
     col_cfg = {
         "Qty.": st.column_config.NumberColumn("Qty", format="%.0f"),
-        "Avg. cost": st.column_config.NumberColumn("Avg Cost (₹)", format="₹%.2f"),
-        "Live_LTP": st.column_config.NumberColumn("Live LTP (₹)", format="₹%.2f"),
-        "Invested": st.column_config.NumberColumn("Invested (₹)", format="₹%.0f"),
-        "Cur. val": st.column_config.NumberColumn("Cur Val (₹)", format="₹%.0f"),
-        "P&L": st.column_config.NumberColumn("P&L (₹)", format="₹%.0f"),
+        "Avg. cost (₹)": st.column_config.TextColumn("Avg Cost (₹ Indian)", width="small"),
+        "Live LTP (₹)": st.column_config.TextColumn("Live LTP (₹ Indian)", width="small"),
+        "Invested (₹)": st.column_config.TextColumn("Invested (₹ Lakh/Th/H)", width="medium"),
+        "Cur. val (₹)": st.column_config.TextColumn("Cur. Val (₹ Lakh/Th/H)", width="medium"),
+        "P&L (₹)": st.column_config.TextColumn("P&L (₹ Lakh/Th/H)", width="medium"),
         "Net chg. %": st.column_config.NumberColumn("Net Chg %", format="%+.2f%%"),
         "Composite_Score": st.column_config.ProgressColumn("Composite (0-100)", min_value=0, max_value=100, format="%.1f"),
         "Fundamental_Score": st.column_config.ProgressColumn("Fundamental", min_value=0, max_value=100, format="%.1f"),
         "Technical_Score": st.column_config.ProgressColumn("Technical", min_value=0, max_value=100, format="%.1f"),
         "FII_DII_Score": st.column_config.ProgressColumn("FII/DII Score", min_value=0, max_value=100, format="%.1f"),
+        "RSI_14": st.column_config.NumberColumn("RSI (14D)", format="%.1f"),
+        "RSI_Signal": st.column_config.TextColumn("RSI Zone / Signal", width="medium"),
+        "MACD_Status": st.column_config.TextColumn("MACD (12,26,9)", width="medium"),
+        "50-DMA (₹)": st.column_config.TextColumn("50-DMA (₹)", width="small"),
+        "200-DMA (₹)": st.column_config.TextColumn("200-DMA (₹)", width="small"),
+        "Dist_50DMA_Pct": st.column_config.NumberColumn("Dist vs 50-DMA %", format="%+.2f%%"),
+        "Dist_200DMA_Pct": st.column_config.NumberColumn("Dist vs 200-DMA %", format="%+.2f%%"),
+        "Off_52W_High_Pct": st.column_config.NumberColumn("From 52W High %", format="%+.2f%%"),
+        "BB_Pct_B": st.column_config.NumberColumn("Bollinger %B", format="%.1f%%"),
+        "Beta_Nifty": st.column_config.NumberColumn("Beta vs NIFTY", format="%.2f"),
+        "BT_Volatility_Pct": st.column_config.NumberColumn("Ann. Volatility %", format="%.2f%%"),
+        "BT_MaxDD_Pct": st.column_config.NumberColumn("Max Drawdown %", format="%.2f%%"),
+        "Ret_1M_Pct": st.column_config.NumberColumn("1M Return %", format="%+.2f%%"),
+        "Ret_3M_Pct": st.column_config.NumberColumn("3M Return %", format="%+.2f%%"),
+        "Ret_6M_Pct": st.column_config.NumberColumn("6M Return %", format="%+.2f%%"),
+        "Ret_1Y_Pct": st.column_config.NumberColumn("1Y Return %", format="%+.2f%%"),
+        "Alpha_vs_Nifty_Pct": st.column_config.NumberColumn("Alpha vs NIFTY %", format="%+.2f%%"),
+        "PE_Ratio": st.column_config.TextColumn("P/E", width="small"),
+        "PB_Ratio": st.column_config.TextColumn("P/B", width="small"),
+        "ROE_Pct": st.column_config.TextColumn("ROE %", width="small"),
+        "Div_Yield_Pct": st.column_config.NumberColumn("Div Yield %", format="%.2f%%"),
+        "Inst_Hold_Pct": st.column_config.TextColumn("FII+DII Hold %", width="small"),
+        "Promoter_Hold_Pct": st.column_config.TextColumn("Promoter Hold %", width="small"),
+        "Vol_Acc_Ratio_20D": st.column_config.NumberColumn("Up/Down Vol Ratio", format="%.2f"),
+        "CMF_20D": st.column_config.NumberColumn("Chaikin Money Flow", format="%+.3f"),
         "BT_CAGR_Pct": st.column_config.NumberColumn("Holding Backtest CAGR %", format="%+.2f%%"),
         "BT_Sharpe": st.column_config.NumberColumn("Holding Sharpe", format="%.2f"),
         "Alternate_Display": st.column_config.TextColumn("Backtested Alternate Ticker", width="medium"),
         "Alt_BT_CAGR_Pct": st.column_config.NumberColumn("Alternate CAGR %", format="%+.2f%%"),
         "CAGR_Uplift_Pct": st.column_config.NumberColumn("CAGR Uplift %", format="%+.2f%%"),
-        "Est_Profit_Uplift_INR": st.column_config.NumberColumn("Backtested ₹ Profit Uplift", format="₹%.0f"),
+        "Backtested Profit Uplift (₹)": st.column_config.TextColumn("Backtested ₹ Profit Uplift (Indian)", width="medium"),
         "Action_Recommendation": st.column_config.TextColumn("Critic Recommendation", width="large"),
-        "Related_Information": st.column_config.TextColumn("Fundamental, FII/DII & Corporate Action Info", width="large"),
+        "Related_Information": st.column_config.TextColumn("Fundamental, Technical, FII/DII & Corp Action Info", width="large"),
     }
 
-    # --- SUB-TAB 1: ALL HOLDINGS MASTER SCORECARD ---
-    with sub_all:
-        f_c1, f_c2, f_c3, f_c4 = st.columns([1.2, 1.2, 1.2, 1.4])
+    # --- SUB-TILE 0: ALL HOLDINGS MASTER SCORECARD ---
+    if active_sub_idx == 0:
+        f_c1, f_c2, f_c3, f_c4, f_c5 = st.columns([1.15, 1.1, 1.1, 1.1, 1.25])
         with f_c1:
             sel_cats = st.multiselect(
                 "Filter by Primary Category (1-4)",
@@ -2565,21 +2852,38 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
                 key=f"{key_prefix}_filter_ac",
             )
         with f_c3:
+            rsi_regime_filter = st.selectbox(
+                "Filter by RSI / Technical Regime",
+                options=[
+                    "All RSI & Technical Regimes",
+                    "Oversold / Pullback (RSI < 40)",
+                    "Bullish Momentum (RSI 55 - 70)",
+                    "Overbought (RSI >= 70)",
+                    "Above 200-DMA (Stage-2 Uptrend)",
+                    "Below 200-DMA (Stage-4 Breakdown)",
+                    "Bullish MACD Crossover",
+                ],
+                index=0,
+                key=f"{key_prefix}_rsi_regime_filter",
+            )
+        with f_c4:
             sort_by_col = st.selectbox(
                 "Sort Holdings By",
                 options=[
                     "Cur. val",
                     "Composite_Score",
                     "Est_Profit_Uplift_INR",
+                    "RSI_14",
                     "P&L",
                     "Net chg. %",
                     "BT_CAGR_Pct",
                     "FII_DII_Score",
+                    "Alpha_vs_Nifty_Pct",
                 ],
                 index=0,
                 key=f"{key_prefix}_sort_col",
             )
-        with f_c4:
+        with f_c5:
             kw_filter = st.text_input(
                 "Search Symbol / Sector / Alternate Ticker",
                 value="",
@@ -2590,6 +2894,19 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         filtered_df = analytics_df[
             analytics_df["Primary_Category"].isin(sel_cats) & analytics_df["Asset_Class"].isin(sel_ac)
         ].copy()
+        if rsi_regime_filter == "Oversold / Pullback (RSI < 40)":
+            filtered_df = filtered_df[filtered_df["RSI_14"] < 40.0]
+        elif rsi_regime_filter == "Bullish Momentum (RSI 55 - 70)":
+            filtered_df = filtered_df[(filtered_df["RSI_14"] >= 55.0) & (filtered_df["RSI_14"] < 70.0)]
+        elif rsi_regime_filter == "Overbought (RSI >= 70)":
+            filtered_df = filtered_df[filtered_df["RSI_14"] >= 70.0]
+        elif rsi_regime_filter == "Above 200-DMA (Stage-2 Uptrend)":
+            filtered_df = filtered_df[filtered_df["Dist_200DMA_Pct"] >= 0.0]
+        elif rsi_regime_filter == "Below 200-DMA (Stage-4 Breakdown)":
+            filtered_df = filtered_df[filtered_df["Dist_200DMA_Pct"] < 0.0]
+        elif rsi_regime_filter == "Bullish MACD Crossover":
+            filtered_df = filtered_df[filtered_df["MACD_Status"].astype(str).str.contains("Bullish", na=False)]
+
         if kw_filter:
             q_low = kw_filter.lower()
             filtered_df = filtered_df[
@@ -2602,7 +2919,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
 
         filtered_df = filtered_df.sort_values(by=sort_by_col, ascending=False)
         st.dataframe(
-            filtered_df[display_cols],
+            _format_df_for_indian_display(filtered_df),
             use_container_width=True,
             hide_index=True,
             height=560,
@@ -2614,7 +2931,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         with ex_c1:
             st.download_button(
                 "📥 Download Full 102-Holding Critic & Backtested Replacement Report (.csv)",
-                data=analytics_df.to_csv(index=False).encode("utf-8"),
+                data=_format_df_for_indian_display(analytics_df).to_csv(index=False).encode("utf-8"),
                 file_name="aethera_portfolio_critic_and_replacements.csv",
                 mime="text/csv",
                 use_container_width=True,
@@ -2625,7 +2942,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             try:
                 excel_buf = io.BytesIO()
                 with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
-                    analytics_df.to_excel(writer, sheet_name="Holdings_Scorecard", index=False)
+                    _format_df_for_indian_display(analytics_df).to_excel(writer, sheet_name="Holdings_Scorecard", index=False)
                     if not res["etf_overlap_df"].empty:
                         res["etf_overlap_df"].to_excel(writer, sheet_name="ETF_Overlap_Audit", index=False)
                     if not res["demerger_audit_df"].empty:
@@ -2642,28 +2959,28 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             except Exception:
                 st.caption("Install `openpyxl` for multi-sheet `.xlsx` export (CSV export is ready on the left).")
 
-    # --- SUB-TAB 2: 1. ACCUMULATE ---
-    with sub_acc:
+    # --- SUB-TILE 1: 1. ACCUMULATE ---
+    elif active_sub_idx == 1:
         st.markdown("##### 🟢 Category 1: Accumulate — High-Conviction Compounders & Sector Leaders")
         st.caption(
-            "Holdings exhibiting superior Fundamental Quality, strong Technical Uptrend (above 50/200-DMA with positive Relative Strength vs NIFTY 50), and FII/DII Institutional Accumulation. **Action: Keep & add on market dips.**"
+            "Holdings exhibiting superior Fundamental Quality, strong Technical Uptrend (above 50/200-DMA with positive Relative Strength vs NIFTY 50, healthy RSI & MACD), and FII/DII Institutional Accumulation. **Action: Keep & add on market dips.**"
         )
         df_acc = analytics_df[analytics_df["Primary_Category"] == "1. 🟢 Accumulate"].sort_values(
             by="Composite_Score", ascending=False
         )
-        st.dataframe(df_acc[display_cols], use_container_width=True, hide_index=True, column_config=col_cfg)
+        st.dataframe(_format_df_for_indian_display(df_acc), use_container_width=True, hide_index=True, column_config=col_cfg)
 
-    # --- SUB-TAB 3: 2. HOLD ---
-    with sub_hold:
+    # --- SUB-TILE 2: 2. HOLD ---
+    elif active_sub_idx == 2:
         st.markdown("##### 🔵 Category 2: Hold — Core Compounders, Cash-Yielding REITs/InvITs & Sovereign/AAA Fixed Income")
         st.caption(
             "Includes high-ROE core franchises experiencing temporary sector rotation (`ITC`, `HDFCBANK`, `TCS`, `HINDUNILVR`, `VEDL` demerger core), cash-distributing REITs/InvITs (`EMBASSY-RR`, `MINDSPACE-RR`, `BIRET-RR`, `PGINVIT-IV`), and Sovereign/Rated Debt (`SGBDE31III`, `771UP46-SG`, `77AP47-SG`, `930SFL28-YP`, `1125MML27`, `925MFL32A`)."
         )
         df_hld = analytics_df[analytics_df["Primary_Category"] == "2. 🔵 Hold"].sort_values(by="Cur. val", ascending=False)
-        st.dataframe(df_hld[display_cols], use_container_width=True, hide_index=True, column_config=col_cfg)
+        st.dataframe(_format_df_for_indian_display(df_hld), use_container_width=True, hide_index=True, column_config=col_cfg)
 
-    # --- SUB-TAB 4: 3. REPLACE ---
-    with sub_rep:
+    # --- SUB-TILE 3: 3. REPLACE ---
+    elif active_sub_idx == 3:
         st.markdown("##### 🔄 Category 3: Replace — Underperforming Scrips & Duplicate ETFs with Superior Backtested Alternates")
         st.caption(
             "Holdings where either (a) multiple overlapping ETFs in the same factor/sector dilute returns, or (b) a live-backtested peer in the same sector delivers significantly higher historical CAGR and Sharpe Ratio."
@@ -2671,22 +2988,22 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         df_rep = analytics_df[analytics_df["Primary_Category"] == "3. 🔄 Replace"].sort_values(
             by="Est_Profit_Uplift_INR", ascending=False
         )
-        st.dataframe(df_rep[display_cols], use_container_width=True, hide_index=True, column_config=col_cfg)
+        st.dataframe(_format_df_for_indian_display(df_rep), use_container_width=True, hide_index=True, column_config=col_cfg)
 
-    # --- SUB-TAB 5: 4. EXIT ---
-    with sub_exit:
+    # --- SUB-TILE 4: 4. EXIT ---
+    elif active_sub_idx == 4:
         st.markdown("##### 🔴 Category 4: Exit — Stage-4 Breakdowns, Value Traps & Sub-Scale Demerged Stubs")
         st.caption(
-            f"These **{c_ext} holdings** suffer from severe technical breakdown (trading well below 200-DMA), negative earnings momentum, institutional distribution, or sub-scale post-demerger stub drag (`VEDPOWER`, `VOGL`, `VISL`). "
-            f"**Liquidating them frees ₹{val_ext:,.0f}**, which can be reallocated into their live-backtested replacement leaders shown below."
+            f"These **{c_ext} holdings** suffer from severe technical breakdown (trading well below 200-DMA, weak RSI/MACD), negative earnings momentum, institutional distribution, or sub-scale post-demerger stub drag (`VEDPOWER`, `VOGL`, `VISL`). "
+            f"**Liquidating them frees {format_indian_currency(val_ext, decimals=2)}**, which can be reallocated into their live-backtested replacement leaders shown below."
         )
         df_ext = analytics_df[analytics_df["Primary_Category"] == "4. 🔴 Exit"].sort_values(
             by="Cur. val", ascending=False
         )
-        st.dataframe(df_ext[display_cols], use_container_width=True, hide_index=True, column_config=col_cfg)
+        st.dataframe(_format_df_for_indian_display(df_ext), use_container_width=True, hide_index=True, column_config=col_cfg)
 
-    # --- SUB-TAB 6: ETF OVERLAP, DEMERGER FAMILIES & BROKER BOND AUDIT ---
-    with sub_special:
+    # --- SUB-TILE 5: ETF OVERLAP, DEMERGER FAMILIES & BROKER BOND AUDIT ---
+    elif active_sub_idx == 5:
         st.markdown("##### 🟠 Part A: ETF Factor & Sector Overlap Deduplication Audit")
         st.caption(
             "Your portfolio holds **35 ETFs**, several of which track virtually identical underlying indices (e.g., 4 Alpha/Momentum ETFs, 4 Quality/NV20 ETFs, 3 FMCG/Consumption ETFs, 4 Broad Large-Cap ETFs). Consolidating each cluster into its **#1 live-backtested leader** simplifies tracking and improves risk-adjusted return:"
@@ -2711,8 +3028,8 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         else:
             st.success("Zero broker pricing anomalies detected in this upload.")
 
-    # --- SUB-TAB 7: LIVE WALK-FORWARD BACKTEST & SINGLE-STOCK SWITCH SIMULATOR ---
-    with sub_bt:
+    # --- SUB-TILE 6: LIVE WALK-FORWARD BACKTEST & SINGLE-STOCK SWITCH SIMULATOR ---
+    elif active_sub_idx == 6:
         st.markdown(
             f"##### 📈 Portfolio-Level Walk-Forward Backtest (`{summary['lookback_label']}` — Indexed to 100)"
         )
@@ -2731,7 +3048,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             analytics_df["Primary_Category"].isin(["3. 🔄 Replace", "4. 🔴 Exit", "1. 🟢 Accumulate", "2. 🔵 Hold"])
         ].copy()
         holding_options = [
-            f"{r['Instrument']} ({r['Primary_Category']} | Cur CAGR: {r['BT_CAGR_Pct']:+.1f}%)  ➔  Alternate: {r['Alternate_Ticker']} (CAGR: {r['Alt_BT_CAGR_Pct']:+.1f}%)"
+            f"{r['Instrument']} ({r['Primary_Category']} | Cur CAGR: {r['BT_CAGR_Pct']:+.1f}% | RSI: {r['RSI_14']:.1f})  ➔  Alternate: {r['Alternate_Ticker']} (CAGR: {r['Alt_BT_CAGR_Pct']:+.1f}%)"
             for _, r in switch_candidates_df.iterrows()
         ]
         # Default to first Replace or Exit holding
@@ -2757,7 +3074,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         s_c1.metric(
             f"Current: {h_sym} Backtest CAGR",
             f"{sel_row['BT_CAGR_Pct']:+.2f}%",
-            f"Sharpe: {sel_row['BT_Sharpe']:.2f} • MaxDD: {sel_row['BT_MaxDD_Pct']:.1f}%",
+            f"Sharpe: {sel_row['BT_Sharpe']:.2f} • RSI: {sel_row['RSI_14']:.1f} • MaxDD: {sel_row['BT_MaxDD_Pct']:.1f}%",
         )
         s_c2.metric(
             f"Alternate: {a_sym} Backtest CAGR",
@@ -2770,11 +3087,17 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             f"Sharpe Delta: {sel_row['Alt_BT_Sharpe'] - sel_row['BT_Sharpe']:+.2f}",
         )
         s_c4.metric(
-            f"Simulated Profit Uplift on ₹{sel_row['Cur. val']:,.0f}",
-            f"+₹{sel_row['Est_Profit_Uplift_INR']:,.0f}",
+            f"Simulated Profit Uplift on {format_indian_currency(sel_row['Cur. val'], decimals=2)}",
+            format_indian_currency(sel_row["Est_Profit_Uplift_INR"], decimals=2, signed=True),
             sel_row["Primary_Category"],
         )
-        st.info(f"📌 **Backtest Proof:** {sel_row['Backtest_Proof']}  \n💡 **Action:** {sel_row['Action_Recommendation']}")
+        st.info(
+            f"📌 **Backtest Proof:** {sel_row['Backtest_Proof']}  \n"
+            f"📐 **Technicals ({h_sym}):** RSI(14) `{sel_row['RSI_14']:.1f}` ({sel_row['RSI_Signal']}) • MACD `{sel_row['MACD_Status']}` • "
+            f"50-DMA `{format_indian_currency(sel_row['SMA_50'], decimals=2)}` ({sel_row['Dist_50DMA_Pct']:+.1f}%) • "
+            f"200-DMA `{format_indian_currency(sel_row['SMA_200'], decimals=2)}` ({sel_row['Dist_200DMA_Pct']:+.1f}%)  \n"
+            f"💡 **Action:** {sel_row['Action_Recommendation']}"
+        )
 
         st.markdown("##### 🏆 Live Backtested Candidate Replacement Universe Leaderboard")
         st.caption(
