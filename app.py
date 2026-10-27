@@ -51,6 +51,8 @@ except Exception:
     native_oi_interpreter = None
     HAS_NATIVE_OPEN_INTERPRETER = False
 
+from portfolio_holdings_engine import render_portfolio_holdings_analytics_tab
+
 # =====================================================================
 # PAGE CONFIGURATION
 # =====================================================================
@@ -2841,15 +2843,19 @@ def render_login_page() -> None:
     st.title("🏛️ Aethera Systems Core — Applications Portal")
     st.markdown("#### 🧭 Permanent Navigation Tiles *(Selected Tile = Warm Gold • Unselected = Sky Blue)*")
 
-    tab_public_apps, tab_admin_login = st.tabs(
+    tab_public_apps, tab_public_portfolio, tab_admin_login = st.tabs(
         [
             "🌐 1. Streamlit Apps Directory (Visible to All)",
-            "🔐 2. Admin Login",
+            "💼 2. Portfolio Holdings Critic & Backtested Replacements",
+            "🔐 3. Admin Login",
         ]
     )
 
     with tab_public_apps:
         render_public_streamlit_apps_tab(health_map, key_prefix="visitor_pub")
+
+    with tab_public_portfolio:
+        render_portfolio_holdings_analytics_tab(key_prefix="visitor_port_lab")
 
     with tab_admin_login:
         _, center_col, _ = st.columns([1.0, 1.8, 1.0])
@@ -3033,7 +3039,7 @@ def render_master_dashboard() -> None:
     # PERMANENT VISIBLE NAVIGATION TILES (2x3 GRID)
     # =================================================================
     st.markdown("#### 🧭 Permanent Navigation Tiles *(Selected Tile = Warm Gold • Unselected = Sky Blue)*")
-    tab_public_only, tab_repos, tab_health, tab_commits, tab_table, tab_oi = st.tabs(
+    tab_public_only, tab_repos, tab_health, tab_commits, tab_table, tab_oi, tab_portfolio = st.tabs(
         [
             "🌐 1. Streamlit Apps Only (Visible to All — Public & Private)",
             "🚀 2. Repositories & Live Streamlit Apps (Admin Cards)",
@@ -3041,6 +3047,7 @@ def render_master_dashboard() -> None:
             "🔍 4. Commits, CI Workflows & App Blocker Forensics",
             "📊 5. Unified Master Directory Table & Cron URLs",
             "🤖 6. Open Interpreter & Antigravity Repo Studio",
+            "💼 7. Portfolio Holdings Critic, FII/DII & Backtested Replacements",
         ]
     )
 
@@ -4172,6 +4179,12 @@ def render_master_dashboard() -> None:
                     use_container_width=True,
                     key=f"ag_dl_btn_{file_state_key}",
                 )
+
+    # =================================================================
+    # TAB 7: PORTFOLIO HOLDINGS CRITIC, FII/DII TREND & BACKTESTED REPLACEMENTS
+    # =================================================================
+    with tab_portfolio:
+        render_portfolio_holdings_analytics_tab(key_prefix="admin_port_lab")
 
 
 
