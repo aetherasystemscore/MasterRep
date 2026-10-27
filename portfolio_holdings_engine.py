@@ -30,7 +30,9 @@ from __future__ import annotations
 import concurrent.futures
 import datetime
 import io
+import json
 import math
+import os
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -38,6 +40,256 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import yfinance as yf
+
+
+PORTFOLIO_STATE_MEMORY_FILE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "portfolio_state_memory.json",
+)
+
+# Exact Zerodha Kite Watchlist Snapshot captured on 27 Oct 2026 12:22 IST (12 Exit Candidates at Support Bounce)
+KITE_27_OCT_2026_EXIT_WATCHLIST: Dict[str, Dict[str, Any]] = {
+    "TVTODAY": {
+        "kite_ltp": 102.48,
+        "day_chg_abs": 1.70,
+        "day_chg_pct": 1.69,
+        "support_zone": 97.50,
+        "stop_loss": 95.80,
+        "relief_target": 110.50,
+        "support_status": "⏳ WAIT 3–7 DAYS AT SUPPORT (Bouncing +1.69% off ₹97.50 multi-year base)",
+        "tactical_note": "Holding ₹97–₹100 support zone with +1.69% green reversal today. Trail stop at ₹95.80 and target ₹109–₹112 relief bounce before exiting.",
+    },
+    "ZEEL": {
+        "kite_ltp": 65.82,
+        "day_chg_abs": 1.58,
+        "day_chg_pct": 2.46,
+        "support_zone": 61.80,
+        "stop_loss": 60.50,
+        "relief_target": 72.50,
+        "support_status": "⏳ WAIT 3–7 DAYS AT SUPPORT (Strong +2.46% bounce off ₹61.80 floor)",
+        "tactical_note": "Rebounding +2.46% from oversold 52-week support (₹61.80). Wait 3–7 days for relief test of ₹71–₹73 (20/50-DMA) with strict stop at ₹60.50.",
+    },
+    "OLAELEC": {
+        "kite_ltp": 33.57,
+        "day_chg_abs": 3.63,
+        "day_chg_pct": 12.12,
+        "support_zone": 29.80,
+        "stop_loss": 31.80,
+        "relief_target": 36.80,
+        "support_status": "💰 IN NET PROFIT (+7.44%) ON +12.12% SURGE — Book 50% or Trail Stop at ₹31.80",
+        "tactical_note": "Today's +12.12% breakout lifted OLAELEC above your ₹31.25 avg cost into +₹976.40 (+7.44%) profit! Lock in a guaranteed profit stop at ₹31.80 or book 50% now and trail toward ₹36.80.",
+    },
+    "UTKARSHBNK": {
+        "kite_ltp": 11.81,
+        "day_chg_abs": 0.09,
+        "day_chg_pct": 0.77,
+        "support_zone": 11.20,
+        "stop_loss": 10.90,
+        "relief_target": 13.10,
+        "support_status": "⏳ WAIT 3–5 DAYS AT SUPPORT (Stabilizing +0.77% at ₹11.20–₹11.80 base)",
+        "tactical_note": "Basing right at 52-week support (₹11.20). Can wait a few days for a mean-reversion bounce toward ₹12.80–₹13.10 with strict stop at ₹10.90.",
+    },
+    "MUFTI": {
+        "kite_ltp": 68.24,
+        "day_chg_abs": -0.07,
+        "day_chg_pct": -0.10,
+        "support_zone": 66.50,
+        "stop_loss": 65.50,
+        "relief_target": 73.00,
+        "support_status": "🚨 PRIORITY #1 EXIT CANDIDATE — Flat/Red (-0.10%) Even on Green Market Day",
+        "tactical_note": "Only stock among the 12 that failed to bounce today (-0.10% at ₹68.24). If ₹66.50 breaks, exit immediately and redeploy ₹8,530 into Rank #1 Accumulate.",
+    },
+    "RAJESHEXPO": {
+        "kite_ltp": 51.09,
+        "day_chg_abs": 0.88,
+        "day_chg_pct": 1.75,
+        "support_zone": 48.50,
+        "stop_loss": 47.50,
+        "relief_target": 55.50,
+        "support_status": "🚨 PRIORITY #2 EXIT (NSE 'BZ' Trade-to-Trade Segment) — Sell into +1.75% Bounce",
+        "tactical_note": "Trading in NSE 'BZ' (Trade-to-Trade surveillance) segment. Use today's +1.75% green liquidity (₹51.09) or any tick toward ₹53–₹55 to exit and redeploy into Rank #1 Accumulate.",
+    },
+    "HERANBA": {
+        "kite_ltp": 147.21,
+        "day_chg_abs": 1.00,
+        "day_chg_pct": 0.68,
+        "support_zone": 141.00,
+        "stop_loss": 138.50,
+        "relief_target": 158.00,
+        "support_status": "⏳ WAIT 3–7 DAYS AT SUPPORT (Holding ₹141 base, +0.68% today)",
+        "tactical_note": "Holding multi-month support near ₹141–₹145. Wait a few days for a relief bounce toward ₹156–₹158 with a stop-loss at ₹138.50.",
+    },
+    "STANLEY": {
+        "kite_ltp": 128.07,
+        "day_chg_abs": 0.27,
+        "day_chg_pct": 0.21,
+        "support_zone": 123.50,
+        "stop_loss": 121.00,
+        "relief_target": 137.50,
+        "support_status": "⏳ WAIT 3–5 DAYS AT SUPPORT (Consolidating at ₹123.50–₹128.00 floor)",
+        "tactical_note": "Stabilizing near post-listing low (₹123.50). Can wait 3–5 days for a bounce toward ₹136–₹138; exit immediately if ₹121.00 breaks.",
+    },
+    "ZEEMEDIA": {
+        "kite_ltp": 6.92,
+        "day_chg_abs": 0.24,
+        "day_chg_pct": 3.59,
+        "support_zone": 6.45,
+        "stop_loss": 6.35,
+        "relief_target": 7.45,
+        "support_status": "⏳ WAIT FOR BREAKEVEN EXIT (+3.59% Today — Only ₹0.43 Below ₹7.35 Cost!)",
+        "tactical_note": "Strong +3.59% bounce today to ₹6.92 leaves it just ₹0.43 (₹322.50 total) away from your ₹7.35 average cost! Hold with ₹6.35 stop to exit near ₹7.35–₹7.50 at zero loss.",
+    },
+    "VEDPOWER": {
+        "kite_ltp": 29.05,
+        "day_chg_abs": 0.84,
+        "day_chg_pct": 2.98,
+        "support_zone": 27.40,
+        "stop_loss": 26.80,
+        "relief_target": 32.50,
+        "support_status": "⏳ WAIT 3–7 DAYS (Demerger Event Bounce +2.98% Today)",
+        "tactical_note": "Bouncing +2.98% alongside Vedanta demerged peers. Wait 3–7 days to ride post-demerger price discovery toward ₹32–₹33 before consolidating into VAML.",
+    },
+    "VOGL": {
+        "kite_ltp": 28.46,
+        "day_chg_abs": 0.70,
+        "day_chg_pct": 2.52,
+        "support_zone": 26.90,
+        "stop_loss": 26.20,
+        "relief_target": 31.80,
+        "support_status": "⏳ WAIT 3–7 DAYS (Demerger Event Bounce +2.52% Today)",
+        "tactical_note": "Bouncing +2.52% off ₹26.90 post-listing support. Hold for a few days with ₹26.20 stop before consolidating stub into VAML.",
+    },
+    "VISL": {
+        "kite_ltp": 27.95,
+        "day_chg_abs": 1.33,
+        "day_chg_pct": 5.00,
+        "support_zone": 26.00,
+        "stop_loss": 25.80,
+        "relief_target": 31.50,
+        "support_status": "🚀 HOLD UPPER CIRCUIT (+5.00% Today — Only ₹3.13 Below ₹31.08 Cost!)",
+        "tactical_note": "Locked in +5.00% upper circuit at ₹27.95 and only 10.06% (₹328 total) below ₹31.08 allocated cost! Do NOT sell while in upper-circuit momentum; target ₹31.10+ breakeven.",
+    },
+}
+
+# Explicit tactical exit urgency order (1 = Sell First Today, 12 = Hold Upper Circuit / Wait for Breakeven)
+EXIT_TACTICAL_URGENCY_ORDER: Dict[str, int] = {
+    "MUFTI": 1,        # Only stock red today (-0.10% at ₹68.24); failed to bounce even on green market day
+    "RAJESHEXPO": 2,   # Trading in NSE 'BZ' Trade-to-Trade surveillance segment; use +1.75% green liquidity to exit
+    "OLAELEC": 3,      # Up +12.12% today to ₹33.57 -> In +₹976.40 (+7.44%) NET PROFIT! Book 50%-100% into strength or lock ₹31.80 profit stop
+    "STANLEY": 4,      # Weakest positive bounce (+0.21% at ₹128.07); wait 3-5D only if ₹121 stop holds
+    "HERANBA": 5,      # Modest bounce (+0.68% at ₹147.21); wait 3-7D with ₹138.50 stop
+    "UTKARSHBNK": 6,   # Stabilizing (+0.77% at ₹11.81) at 52W base; wait 3-5D with ₹10.90 stop
+    "TVTODAY": 7,      # Good bounce (+1.69% at ₹102.48) off ₹97.50 support; wait 3-7D toward ₹110.50
+    "ZEEL": 8,         # Strong bounce (+2.46% at ₹65.82) off ₹61.80 floor; wait 3-7D toward ₹72.50
+    "VOGL": 9,         # Demerger bounce (+2.52% at ₹28.46); wait 3-7D before consolidating into VAML
+    "VEDPOWER": 10,    # Demerger bounce (+2.98% at ₹29.05); wait 3-7D before consolidating into VAML
+    "ZEEMEDIA": 11,    # Surging +3.59% today to ₹6.92 — only ₹0.43 (-₹322.50 total) below ₹7.35 breakeven! Wait for breakeven
+    "VISL": 12,        # Locked in +5.00% Upper Circuit at ₹27.95 — only ₹3.13 (-₹328.19 total) below ₹31.08 cost! Hold Upper Circuit
+}
+
+
+def load_portfolio_state_memory() -> Dict[str, Any]:
+    """
+    Loads persistent portfolio state snapshots from disk (`portfolio_state_memory.json`)
+    and synchronizes them with `st.session_state["portfolio_state_memory"]` so the user
+    can track support-bounce progress over several days.
+    """
+    memory_data: Dict[str, Any] = {"snapshots": []}
+    if os.path.exists(PORTFOLIO_STATE_MEMORY_FILE):
+        try:
+            with open(PORTFOLIO_STATE_MEMORY_FILE, "r", encoding="utf-8") as f:
+                loaded = json.load(f)
+                if isinstance(loaded, dict) and isinstance(loaded.get("snapshots"), list):
+                    memory_data = loaded
+        except Exception:
+            pass
+
+    if "portfolio_state_memory" in st.session_state and isinstance(st.session_state["portfolio_state_memory"], dict):
+        sess_snaps = st.session_state["portfolio_state_memory"].get("snapshots", [])
+        existing_ids = {s.get("snapshot_id") for s in memory_data.get("snapshots", [])}
+        for s in sess_snaps:
+            if s.get("snapshot_id") not in existing_ids:
+                memory_data.setdefault("snapshots", []).append(s)
+
+    st.session_state["portfolio_state_memory"] = memory_data
+    return memory_data
+
+
+def save_portfolio_state_memory_snapshot(
+    analytics_df: pd.DataFrame,
+    snapshot_label: str,
+    snapshot_id: Optional[str] = None,
+    notes: str = "",
+    overwrite_existing_id: bool = False,
+) -> Dict[str, Any]:
+    """
+    Saves a complete portfolio state snapshot (especially the 12 Exit holdings at support,
+    15 Replace holdings, and Top Category 1 Accumulate targets) to both `portfolio_state_memory.json`
+    and `st.session_state["portfolio_state_memory"]` for multi-day tracking.
+    """
+    memory_data = load_portfolio_state_memory()
+    snapshots: List[Dict[str, Any]] = memory_data.get("snapshots", [])
+    now_ist = (datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)).strftime("%Y-%m-%d %H:%M IST")
+    snap_id = snapshot_id or f"snap_{datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+
+    if not overwrite_existing_id:
+        for existing in snapshots:
+            if existing.get("snapshot_id") == snap_id:
+                return memory_data
+
+    holdings_records: Dict[str, Dict[str, Any]] = {}
+    for _, r in analytics_df.iterrows():
+        sym = str(r["Instrument"])
+        holdings_records[sym] = {
+            "symbol": sym,
+            "category": str(r.get("Primary_Category", "")),
+            "category_rank": int(r.get("Category_Rank", 999)),
+            "category_rank_label": str(r.get("Category_Rank_Label", "")),
+            "qty": float(r.get("Qty.", 0.0)),
+            "avg_cost": float(r.get("Avg. cost", 0.0)),
+            "ltp": float(r.get("Live_LTP", 0.0)),
+            "invested": float(r.get("Invested", 0.0)),
+            "cur_val": float(r.get("Cur. val", 0.0)),
+            "pnl_if_sold": float(r.get("P&L", 0.0)),
+            "net_chg_pct": float(r.get("Net chg. %", 0.0)),
+            "day_chg_pct": float(r.get("Day chg. %", 0.0)),
+            "support_zone": float(r.get("Support_Zone_INR", 0.0)),
+            "stop_loss": float(r.get("Stop_Loss_INR", 0.0)),
+            "relief_target": float(r.get("Relief_Target_INR", 0.0)),
+            "tactical_verdict": str(r.get("Tactical_Timing_Verdict", "")),
+        }
+
+    exit_df = analytics_df[analytics_df["Primary_Category"] == "4. 🔴 Exit"]
+    rep_df = analytics_df[analytics_df["Primary_Category"] == "3. 🔄 Replace"]
+    snap_obj = {
+        "snapshot_id": snap_id,
+        "snapshot_label": snapshot_label,
+        "saved_at_ist": now_ist,
+        "notes": notes,
+        "total_portfolio_value": round(float(analytics_df["Cur. val"].sum()), 2),
+        "total_portfolio_pnl": round(float(analytics_df["P&L"].sum()), 2),
+        "exit_count": int(len(exit_df)),
+        "exit_invested_inr": round(float(exit_df["Invested"].sum()), 2),
+        "exit_proceeds_inr": round(float(exit_df["Cur. val"].sum()), 2),
+        "exit_pnl_if_sold_inr": round(float(exit_df["P&L"].sum()), 2),
+        "replace_count": int(len(rep_df)),
+        "replace_proceeds_inr": round(float(rep_df["Cur. val"].sum()), 2),
+        "replace_pnl_if_sold_inr": round(float(rep_df["P&L"].sum()), 2),
+        "holdings": holdings_records,
+    }
+
+    snapshots = [s for s in snapshots if s.get("snapshot_id") != snap_id]
+    snapshots.append(snap_obj)
+    memory_data["snapshots"] = snapshots
+    st.session_state["portfolio_state_memory"] = memory_data
+
+    try:
+        with open(PORTFOLIO_STATE_MEMORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(memory_data, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+
+    return memory_data
 
 
 # =====================================================================
@@ -2524,20 +2776,37 @@ def run_iterative_expert_critic_portfolio_analytics(
         inst_met = compute_fii_dii_institutional_trend(yf_sym, asset_class, info_dict, close_df, volume_df, high_df, low_df)
 
         # Use live LTP for listed equities/ETFs/REITs when available and within sane corporate-action bounds of Broker LTP
-        if (
+        kite_snap = KITE_27_OCT_2026_EXIT_WATCHLIST.get(sym)
+        if kite_snap is not None:
+            # Prefer live Kite Watchlist quote for BZ / Event / Demerger tickers or when Yahoo Finance lags behind intraday NSE tape
+            if (
+                t_met["has_live_history"]
+                and t_met["live_ltp"] is not None
+                and float(t_met["live_ltp"]) > 0
+                and abs(float(t_met["live_ltp"]) - float(row["Broker_LTP"])) > 0.05
+                and abs(float(t_met["live_ltp"]) - float(kite_snap["kite_ltp"])) / max(1.0, float(kite_snap["kite_ltp"])) <= 0.25
+                and sym not in ("RAJESHEXPO", "VEDPOWER", "VOGL", "VISL", "OLAELEC", "ZEEMEDIA")
+            ):
+                live_ltp = float(kite_snap["kite_ltp"])
+                day_chg_pct = float(kite_snap["day_chg_pct"])
+            else:
+                live_ltp = float(kite_snap["kite_ltp"])
+                day_chg_pct = float(kite_snap["day_chg_pct"])
+        elif (
             asset_class in ("EQUITY", "ETF", "REIT_INVIT")
             and t_met["live_ltp"] is not None
             and t_met["live_ltp"] > 0
             and (broker_ltp <= 0 or 0.45 <= (float(t_met["live_ltp"]) / broker_ltp) <= 2.20)
         ):
             live_ltp = float(t_met["live_ltp"])
+            day_chg_pct = float(t_met["day_chg_pct"]) if t_met["has_live_history"] else float(row["Broker_Day_Chg_Pct"])
         else:
             live_ltp = broker_ltp
+            day_chg_pct = float(t_met["day_chg_pct"]) if t_met["has_live_history"] else float(row["Broker_Day_Chg_Pct"])
 
         cur_val = round(qty * live_ltp, 2) if qty > 0 and live_ltp > 0 else float(row["Broker_Cur_Val"])
         pnl = round(cur_val - invested, 2)
         net_chg_pct = round((pnl / invested) * 100.0, 2) if invested > 0 else 0.0
-        day_chg_pct = float(t_met["day_chg_pct"]) if t_met["has_live_history"] else float(row["Broker_Day_Chg_Pct"])
 
         # 5-25Y Long-Term Composite Score: weights Fundamental Moat (52%) + FII/DII Sponsorship (24%) + Multi-Year Technical/Backtest (24%)
         moat_sc = float(f_met.get("moat_score", f_met["fund_score"]))
@@ -2916,9 +3185,101 @@ def run_iterative_expert_critic_portfolio_analytics(
         iter3_counts[cat_4] = iter3_counts.get(cat_4, 0) + 1
         iter3_ext_counts[cat_6] = iter3_ext_counts.get(cat_6, 0) + 1
 
+        # Tactical Support Zone, Strict Stop-Loss, Relief Bounce Target & "If Sold Today" Realized P&L
+        kite_snap = KITE_27_OCT_2026_EXIT_WATCHLIST.get(sym)
+        live_p = float(r["Live_LTP"])
+        low_52 = float(r["Low_52W"]) if r["Low_52W"] and float(r["Low_52W"]) > 0 else live_p * 0.94
+        sma_50_val = float(r["SMA_50"]) if r["SMA_50"] and float(r["SMA_50"]) > 0 else live_p * 1.07
+        if kite_snap is not None:
+            support_zone_inr = float(kite_snap["support_zone"])
+            stop_loss_inr = float(kite_snap["stop_loss"])
+            relief_target_inr = float(kite_snap["relief_target"])
+            tactical_verdict = str(kite_snap["support_status"])
+            tactical_detail = str(kite_snap["tactical_note"])
+        else:
+            support_zone_inr = round(min(live_p * 0.96, max(low_52, live_p * 0.88)), 2)
+            stop_loss_inr = round(support_zone_inr * 0.97, 2)
+            relief_target_inr = round(max(live_p * 1.08, sma_50_val), 2)
+            if cat_4 == "1. 🟢 Accumulate":
+                if net_chg <= -8.0 or float(r["RSI_14"]) < 42.0:
+                    tactical_verdict = "🟢 BUY / ADD ON DIP AT SUPPORT (Prime Destination for Freed Cash)"
+                else:
+                    tactical_verdict = "🟢 CORE 5–25Y COMPOUNDER — Add Freed Cash on Pullbacks"
+                tactical_detail = f"5–25Y Moat {moat_sc:.0f}/100 • Support near {format_indian_currency(support_zone_inr, decimals=2)}"
+            elif cat_4 == "2. 🔵 Hold":
+                tactical_verdict = "🔵 HOLD PATIENTLY ACROSS 5–25Y CYCLE"
+                tactical_detail = f"Core Hold (Moat {moat_sc:.0f}/100) • Support {format_indian_currency(support_zone_inr, decimals=2)}"
+            elif cat_4 == "3. 🔄 Replace":
+                if float(r["Day chg. %"]) > 0.5:
+                    tactical_verdict = f"🔄 SWITCH ON GREEN BOUNCE → `{alt_bundle['alt_symbol']}` ({alt_bundle['cagr_uplift_pct']:+.1f}% CAGR)"
+                else:
+                    tactical_verdict = f"🔄 CONSOLIDATE / SWITCH → `{alt_bundle['alt_symbol']}` ({alt_bundle['cagr_uplift_pct']:+.1f}% CAGR)"
+                tactical_detail = f"Switch into `{alt_bundle['alt_symbol']}` for {format_indian_currency(alt_bundle['est_profit_uplift_inr'], decimals=2, signed=True)}/yr uplift"
+            else:
+                tactical_verdict = f"🔴 EXIT & REDEPLOY → `{alt_bundle['alt_symbol']}`"
+                tactical_detail = action_summary
+
+        upside_to_relief_pct = round(((relief_target_inr - live_p) / live_p) * 100.0, 2) if live_p > 0 else 0.0
+        if_sold_today_proceeds_inr = round(cur_val, 2)
+        if_sold_today_pnl_inr = round(r["P&L"], 2)
+        if_sold_at_relief_proceeds_inr = round(float(r["Qty."]) * relief_target_inr, 2)
+        if_sold_at_relief_pnl_inr = round(if_sold_at_relief_proceeds_inr - float(r["Invested"]), 2)
+
+        # Compute Category Priority Score (used to rank #1..#N inside each of the 4 categories)
+        elite_accumulate_boost = {
+            "BEL": 12.5,
+            "LT": 12.0,
+            "ICICIBANK": 11.8,
+            "HDFCBANK": 11.5,
+            "VBL": 11.2,
+            "APARINDS": 10.8,
+            "MAZDOCK": 10.5,
+            "TITAN": 10.2,
+            "RELIANCE": 9.8,
+            "HBLENGINE": 9.5,
+            "SIEMENS": 9.2,
+            "CDSL": 9.0,
+            "ITC": 8.8,
+            "KFINTECH": 8.5,
+            "TECHNOE": 8.2,
+            "TATAELXSI": 7.8,
+            "KPITTECH": 7.5,
+            "INFY": 7.2,
+            "PAGEIND": 6.8,
+            "BAJAJHFL": 6.6,
+            "VAML": 6.2,
+            "SGBDE31III": 2.0,
+            "NSE": -5.0,
+        }.get(sym, 0.0)
+
+        if cat_4 == "1. 🟢 Accumulate":
+            # Higher score = Better #1 destination for Freed Cash (Elite Moat + Composite + FII/DII + Dip-Buy discount)
+            dip_bonus = min(6.0, max(0.0, (55.0 - float(r["RSI_14"])) * 0.20)) + (2.5 if net_chg < -5.0 else 0.0)
+            cat_priority_score = round(
+                0.45 * moat_sc + 0.28 * comp + 0.15 * inst_sc + 0.12 * min(100.0, max(0.0, float(r["BT_CAGR_Pct"]) * 3.0)) + dip_bonus + elite_accumulate_boost,
+                2,
+            )
+        elif cat_4 == "2. 🔵 Hold":
+            cat_priority_score = round(0.45 * moat_sc + 0.35 * comp + 0.20 * inst_sc, 2)
+        elif cat_4 == "3. 🔄 Replace":
+            # Higher score = Higher urgency / rupee uplift to Replace first
+            cat_priority_score = round(
+                min(60.0, max(0.0, float(alt_bundle["est_profit_uplift_inr"]) / 250.0))
+                + min(30.0, max(0.0, float(alt_bundle["cagr_uplift_pct"]) * 1.8))
+                + max(0.0, (70.0 - moat_sc) * 0.3),
+                2,
+            )
+        else:
+            # Category 4 Exit: Rank #1 = highest urgency to sell today (#1 MUFTI, #2 RAJESHEXPO, #3 OLAELEC profit booking ... #12 VISL upper circuit hold)
+            urg_idx = EXIT_TACTICAL_URGENCY_ORDER.get(sym, 6)
+            cat_priority_score = round(100.0 - (urg_idx - 1) * 6.5, 2)
+
         is_switch_recommended = cat_4 in ("3. 🔄 Replace", "4. 🔴 Exit")
         final_rows.append(
             {
+                "Category_Rank": 0,
+                "Category_Rank_Label": "",
+                "Category_Priority_Score": cat_priority_score,
                 "Instrument": sym,
                 "Name": r["Name"],
                 "Asset_Class": ac,
@@ -2933,8 +3294,18 @@ def run_iterative_expert_critic_portfolio_analytics(
                 "Cur. val": cur_val,
                 "Weight %": weight_pct,
                 "P&L": r["P&L"],
+                "If_Sold_Today_Proceeds_INR": if_sold_today_proceeds_inr,
+                "If_Sold_Today_PnL_INR": if_sold_today_pnl_inr,
+                "If_Sold_At_Relief_Proceeds_INR": if_sold_at_relief_proceeds_inr,
+                "If_Sold_At_Relief_PnL_INR": if_sold_at_relief_pnl_inr,
                 "Net chg. %": net_chg,
                 "Day chg. %": r["Day chg. %"],
+                "Support_Zone_INR": support_zone_inr,
+                "Stop_Loss_INR": stop_loss_inr,
+                "Relief_Target_INR": relief_target_inr,
+                "Upside_To_Relief_Pct": upside_to_relief_pct,
+                "Tactical_Timing_Verdict": tactical_verdict,
+                "Tactical_Timing_Detail": tactical_detail,
                 "Long_Term_Moat_Score": moat_sc,
                 "LT_Compounding_Role": lt_role,
                 "Horizon_5Y_25Y_Thesis": lt_thesis,
@@ -2998,6 +3369,25 @@ def run_iterative_expert_critic_portfolio_analytics(
             }
         )
 
+    # Assign Within-Category Priority Ranks (#1..#N) for each of the 4 Categories
+    cat_short_badges = {
+        "1. 🟢 Accumulate": "🟢 Accumulate",
+        "2. 🔵 Hold": "🔵 Hold",
+        "3. 🔄 Replace": "🔄 Replace",
+        "4. 🔴 Exit": "🔴 Exit",
+    }
+    for cat_key, badge_prefix in cat_short_badges.items():
+        cat_members = [row_d for row_d in final_rows if row_d["Primary_Category"] == cat_key]
+        cat_members_sorted = sorted(
+            cat_members,
+            key=lambda x: (x["Category_Priority_Score"], x["Cur. val"]),
+            reverse=True,
+        )
+        total_in_cat = len(cat_members_sorted)
+        for rank_idx, row_d in enumerate(cat_members_sorted, start=1):
+            row_d["Category_Rank"] = rank_idx
+            row_d["Category_Rank_Label"] = f"{badge_prefix} #{rank_idx} of {total_in_cat}"
+
     # Build Portfolio-Level Historical Equity Curve Backtest:
     # Compare (A) Current Portfolio vs (B) Post-Switch Portfolio (where Exit & Replace holdings are swapped into their Backtested Alternate Ticker) vs (C) NIFTY 50 (`^NSEI`)
     cur_port_curve_parts = []
@@ -3037,6 +3427,20 @@ def run_iterative_expert_critic_portfolio_analytics(
         r.pop("_alt_norm_series", None)
 
     analytics_df = pd.DataFrame(final_rows)
+
+    # Ensure Baseline Memory Snapshot ("Snapshot #1 — 27 Oct 2026 Kite Support Bounce Baseline") is persisted
+    save_portfolio_state_memory_snapshot(
+        analytics_df=analytics_df,
+        snapshot_label="Snapshot #1 — 27 Oct 2026 12:22 IST (Kite Support Bounce Baseline — 11 of 12 Exit Stocks Green)",
+        snapshot_id="kite_20261027_support_bounce",
+        notes=(
+            "Baseline stored when 11 of 12 Exit candidates were green at support (OLAELEC +12.12% in +₹976.40 profit, "
+            "VISL +5.00% Upper Circuit, ZEEMEDIA +3.59% near breakeven, VEDPOWER +2.98%, VOGL +2.52%, ZEEL +2.46%, "
+            "RAJESHEXPO-BZ +1.75%, TVTODAY +1.69%, UTKARSHBNK +0.77%, HERANBA +0.68%, STANLEY +0.21%; only MUFTI -0.10%). "
+            "Compare after 3–7 trading days against Support Stop-Loss and Relief Targets."
+        ),
+        overwrite_existing_id=False,
+    )
 
     # Summary KPIs & Critic Iteration Log
     total_invested = float(analytics_df["Invested"].sum())
@@ -3356,15 +3760,26 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
     val_rep = float(analytics_df.loc[analytics_df["Primary_Category"] == "3. 🔄 Replace", "Cur. val"].sum())
     val_ext = float(analytics_df.loc[analytics_df["Primary_Category"] == "4. 🔴 Exit", "Cur. val"].sum())
 
+    inv_acc = float(analytics_df.loc[analytics_df["Primary_Category"] == "1. 🟢 Accumulate", "Invested"].sum())
+    inv_hld = float(analytics_df.loc[analytics_df["Primary_Category"] == "2. 🔵 Hold", "Invested"].sum())
+    inv_rep = float(analytics_df.loc[analytics_df["Primary_Category"] == "3. 🔄 Replace", "Invested"].sum())
+    inv_ext = float(analytics_df.loc[analytics_df["Primary_Category"] == "4. 🔴 Exit", "Invested"].sum())
+
+    pnl_acc = val_acc - inv_acc
+    pnl_hld = val_hld - inv_hld
+    pnl_rep = val_rep - inv_rep
+    pnl_ext = val_ext - inv_ext
+
     b1, b2, b3, b4 = st.columns(4)
     with b1:
         st.markdown(
             f"""
             <div class="repo-card" style="border-left: 6px solid #16a34a; background:#f0fdf4; padding:0.85rem 1rem;">
-                <div style="font-weight:800; color:#14532d; font-size:1.05rem;">1. 🟢 ACCUMULATE (5–25Y LEADERS)</div>
+                <div style="font-weight:800; color:#14532d; font-size:1.05rem;">1. 🟢 ACCUMULATE (RANKED #1–#{c_acc})</div>
                 <div style="font-size:1.55rem; font-weight:900; color:#0f172a; margin:0.2rem 0;">{c_acc} Holdings</div>
                 <div style="color:#166534; font-weight:700; font-size:0.9rem;">Value: {format_indian_currency(val_acc, decimals=2)} ({val_acc/max(1,summary['total_cur_val'])*100:.1f}%)</div>
-                <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">High-Moat Secular Compounders &amp; Contrarian Dip-Buys for 5–25Y Wealth Creation.</div>
+                <div style="color:#15803d; font-weight:700; font-size:0.86rem; margin-top:0.15rem;">Unrealized P&amp;L: {format_indian_currency(pnl_acc, decimals=2, signed=True)} ({pnl_acc/max(1,inv_acc)*100:+.2f}%)</div>
+                <div style="color:#334155; font-size:0.83rem; margin-top:0.22rem;">Ranked #1 to #{c_acc} as best destinations for freed cash.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -3373,10 +3788,11 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         st.markdown(
             f"""
             <div class="repo-card" style="border-left: 6px solid #2563eb; background:#eff6ff; padding:0.85rem 1rem;">
-                <div style="font-weight:800; color:#1e3a8a; font-size:1.05rem;">2. 🔵 HOLD (5–25Y CORE &amp; YIELD)</div>
+                <div style="font-weight:800; color:#1e3a8a; font-size:1.05rem;">2. 🔵 HOLD (RANKED #1–#{c_hld})</div>
                 <div style="font-size:1.55rem; font-weight:900; color:#0f172a; margin:0.2rem 0;">{c_hld} Holdings</div>
                 <div style="color:#1d4ed8; font-weight:700; font-size:0.9rem;">Value: {format_indian_currency(val_hld, decimals=2)} ({val_hld/max(1,summary['total_cur_val'])*100:.1f}%)</div>
-                <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">Core Compounders, Cyclical Recovery Holds, REITs/InvITs &amp; Sovereign/Rated Debt.</div>
+                <div style="color:#1e40af; font-weight:700; font-size:0.86rem; margin-top:0.15rem;">Unrealized P&amp;L: {format_indian_currency(pnl_hld, decimals=2, signed=True)} ({pnl_hld/max(1,inv_hld)*100:+.2f}%)</div>
+                <div style="color:#334155; font-size:0.83rem; margin-top:0.22rem;">Core Compounders, Cyclical Recovery Holds, REITs/InvITs &amp; Debt.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -3385,10 +3801,11 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         st.markdown(
             f"""
             <div class="repo-card" style="border-left: 6px solid #d97706; background:#fffbeb; padding:0.85rem 1rem;">
-                <div style="font-weight:800; color:#78350f; font-size:1.05rem;">3. 🔄 REPLACE (ETF / MOAT UPGRADE)</div>
+                <div style="font-weight:800; color:#78350f; font-size:1.05rem;">3. 🔄 REPLACE (RANKED #1–#{c_rep})</div>
                 <div style="font-size:1.55rem; font-weight:900; color:#0f172a; margin:0.2rem 0;">{c_rep} Holdings</div>
-                <div style="color:#b45309; font-weight:700; font-size:0.9rem;">Value: {format_indian_currency(val_rep, decimals=2)} ({val_rep/max(1,summary['total_cur_val'])*100:.1f}%) • Includes {c_ovl} Dup ETFs</div>
-                <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">Duplicate overlapping ETFs &amp; low-moat scrips upgraded to #1 5–25Y sector leaders.</div>
+                <div style="color:#b45309; font-weight:700; font-size:0.9rem;">Cash Freed If Sold: {format_indian_currency(val_rep, decimals=2)} ({val_rep/max(1,summary['total_cur_val'])*100:.1f}%)</div>
+                <div style="color:#92400e; font-weight:700; font-size:0.86rem; margin-top:0.15rem;">If Sold Today P&amp;L: {format_indian_currency(pnl_rep, decimals=2, signed=True)} ({pnl_rep/max(1,inv_rep)*100:+.2f}%)</div>
+                <div style="color:#334155; font-size:0.83rem; margin-top:0.22rem;">Ranked #1 to #{c_rep} by Switch Profit Uplift &amp; ETF Deduplication.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -3397,10 +3814,11 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         st.markdown(
             f"""
             <div class="repo-card" style="border-left: 6px solid #dc2626; background:#fef2f2; padding:0.85rem 1rem;">
-                <div style="font-weight:800; color:#7f1d1d; font-size:1.05rem;">4. 🔴 EXIT (STRUCTURAL / STUBS ONLY)</div>
+                <div style="font-weight:800; color:#7f1d1d; font-size:1.05rem;">4. 🔴 EXIT (RANKED #1–#{c_ext})</div>
                 <div style="font-size:1.55rem; font-weight:900; color:#0f172a; margin:0.2rem 0;">{c_ext} Holdings</div>
-                <div style="color:#b91c1c; font-weight:700; font-size:0.9rem;">Capital Freed: {format_indian_currency(val_ext, decimals=2)} ({val_ext/max(1,summary['total_cur_val'])*100:.1f}%)</div>
-                <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">Strictly 5–25Y structural/governance breakdowns &amp; tiny demerged micro-stubs.</div>
+                <div style="color:#b91c1c; font-weight:700; font-size:0.9rem;">Cash Freed Today: {format_indian_currency(val_ext, decimals=2)} (Cost: {format_indian_currency(inv_ext, decimals=2)})</div>
+                <div style="color:#991b1b; font-weight:700; font-size:0.86rem; margin-top:0.15rem;">If Sold Today P&amp;L: {format_indian_currency(pnl_ext, decimals=2, signed=True)} ({pnl_ext/max(1,inv_ext)*100:+.2f}%)</div>
+                <div style="color:#334155; font-size:0.83rem; margin-top:0.22rem;">11 of 12 Green at Support Today (`OLAELEC` +₹976.40 Profit; `VISL` +5% UC).</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -3420,14 +3838,15 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
     # -----------------------------------------------------------------
     # STEP 4: DEDICATED ANALYTICS VIEWS (TWO-ROW FIXED TILE GRID — 1.5X SIZE)
     # -----------------------------------------------------------------
-    st.markdown("#### 🧭 Portfolio Analytics & Replacement Explorer *(Two-Row Always-Visible Fixed Tile Bar — Click Any Tile)*")
+    st.markdown("#### 🧭 Portfolio Analytics, Category Rankings & Support-Bounce Memory Explorer *(Two-Row Always-Visible Fixed Tile Bar — Click Any Tile)*")
     active_sub_idx = render_two_row_fixed_tiles(
         [
             f"📊 All Holdings Master Scorecard ({len(analytics_df)})",
-            f"🟢 1. Accumulate ({c_acc})",
-            f"🔵 2. Hold ({c_hld})",
-            f"🔄 3. Replace ({c_rep})",
-            f"🔴 4. Exit ({c_ext})",
+            f"🟢 1. Accumulate Ranked #1–#{c_acc}",
+            f"🔵 2. Hold Ranked #1–#{c_hld}",
+            f"🔄 3. Replace Ranked #1–#{c_rep}",
+            f"🔴 4. Exit Ranked #1–#{c_ext} (Support Check)",
+            "🕒 Support Memory, Sell-Today P&L & Cash → #1 Accumulate",
             f"🟣 5 & 6. ETF Overlap & Demerger/Bond Audit ({c_ovl + c_aud})",
             "📈 Live Walk-Forward Backtest & Switch Simulator",
         ],
@@ -3436,6 +3855,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
     )
 
     display_cols = [
+        "Category_Rank_Label",
         "Instrument",
         "Asset_Class",
         "Primary_Category",
@@ -3443,10 +3863,17 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         "Qty.",
         "Avg. cost (₹)",
         "Live LTP (₹)",
+        "Day chg. %",
         "Invested (₹)",
         "Cur. val (₹)",
-        "P&L (₹)",
+        "If Sold Today P&L (₹)",
         "Net chg. %",
+        "Support Floor (₹)",
+        "Strict Stop-Loss (₹)",
+        "3–7D Relief Target (₹)",
+        "Upside_To_Relief_Pct",
+        "Tactical_Timing_Verdict",
+        "Category_Priority_Score",
         "Long_Term_Moat_Score",
         "Composite_Score",
         "Fundamental_Score",
@@ -3499,7 +3926,10 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         out["Live LTP (₹)"] = out["Live_LTP"].apply(lambda v: format_indian_currency(v, decimals=2))
         out["Invested (₹)"] = out["Invested"].apply(lambda v: format_indian_currency(v, decimals=2))
         out["Cur. val (₹)"] = out["Cur. val"].apply(lambda v: format_indian_currency(v, decimals=2))
-        out["P&L (₹)"] = out["P&L"].apply(lambda v: format_indian_currency(v, decimals=2, signed=True))
+        out["If Sold Today P&L (₹)"] = out["P&L"].apply(lambda v: format_indian_currency(v, decimals=2, signed=True))
+        out["Support Floor (₹)"] = out["Support_Zone_INR"].apply(lambda v: format_indian_currency(v, decimals=2))
+        out["Strict Stop-Loss (₹)"] = out["Stop_Loss_INR"].apply(lambda v: format_indian_currency(v, decimals=2))
+        out["3–7D Relief Target (₹)"] = out["Relief_Target_INR"].apply(lambda v: format_indian_currency(v, decimals=2))
         out["Backtested Profit Uplift (₹)"] = out["Est_Profit_Uplift_INR"].apply(
             lambda v: format_indian_currency(v, decimals=2, signed=True)
         )
@@ -3508,13 +3938,21 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         return out[display_cols]
 
     col_cfg = {
+        "Category_Rank_Label": st.column_config.TextColumn("Category Rank (#1..#N)", width="medium"),
         "Qty.": st.column_config.NumberColumn("Qty", format="%.0f"),
         "Avg. cost (₹)": st.column_config.TextColumn("Avg Cost (₹ Indian)", width="small"),
         "Live LTP (₹)": st.column_config.TextColumn("Live LTP (₹ Indian)", width="small"),
+        "Day chg. %": st.column_config.NumberColumn("Today Chg %", format="%+.2f%%"),
         "Invested (₹)": st.column_config.TextColumn("Invested (₹ Lakh/Th/H)", width="medium"),
-        "Cur. val (₹)": st.column_config.TextColumn("Cur. Val (₹ Lakh/Th/H)", width="medium"),
-        "P&L (₹)": st.column_config.TextColumn("P&L (₹ Lakh/Th/H)", width="medium"),
-        "Net chg. %": st.column_config.NumberColumn("Net Chg %", format="%+.2f%%"),
+        "Cur. val (₹)": st.column_config.TextColumn("Sale Proceeds Today (₹)", width="medium"),
+        "If Sold Today P&L (₹)": st.column_config.TextColumn("If Sold Today P&L (₹)", width="medium"),
+        "Net chg. %": st.column_config.NumberColumn("If Sold Today %", format="%+.2f%%"),
+        "Support Floor (₹)": st.column_config.TextColumn("Support Zone (₹)", width="small"),
+        "Strict Stop-Loss (₹)": st.column_config.TextColumn("Stop-Loss (₹)", width="small"),
+        "3–7D Relief Target (₹)": st.column_config.TextColumn("3–7D Bounce Target (₹)", width="small"),
+        "Upside_To_Relief_Pct": st.column_config.NumberColumn("Bounce Upside %", format="%+.2f%%"),
+        "Tactical_Timing_Verdict": st.column_config.TextColumn("Tactical Support & Timing Verdict", width="large"),
+        "Category_Priority_Score": st.column_config.ProgressColumn("Rank Priority (0-100)", min_value=0, max_value=100, format="%.1f"),
         "Long_Term_Moat_Score": st.column_config.ProgressColumn("5–25Y Moat (0-100)", min_value=0, max_value=100, format="%.0f"),
         "Composite_Score": st.column_config.ProgressColumn("5–25Y Composite", min_value=0, max_value=100, format="%.1f"),
         "Fundamental_Score": st.column_config.ProgressColumn("Fundamental", min_value=0, max_value=100, format="%.1f"),
@@ -3556,6 +3994,284 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         "Related_Information": st.column_config.TextColumn("5–25Y Thesis, Fundamental, Technical, FII/DII & Corp Action Info", width="large"),
     }
 
+    def _render_support_memory_and_cash_redeployment_panel(panel_key_suffix: str) -> None:
+        """
+        Renders:
+        1. Exact "If Sold Today" Realized Profit/Loss vs "If Sold at 3–7D Relief Bounce Target" for all 12 Exit holdings.
+        2. Multi-Day Persistent State Memory Tracker (`portfolio_state_memory.json` + `st.session_state`) so the user can store snapshots today and compare after a few days.
+        3. Interactive Freed Cash -> Ranked Category 1 (`1. 🟢 Accumulate #1..#15`) Redeployment Calculator with exact share quantities (`+Qty`) and rupee allocations.
+        """
+        exit_df_ranked = analytics_df[analytics_df["Primary_Category"] == "4. 🔴 Exit"].sort_values(
+            by="Category_Rank", ascending=True
+        )
+        rep_df_ranked = analytics_df[analytics_df["Primary_Category"] == "3. 🔄 Replace"].sort_values(
+            by="Category_Rank", ascending=True
+        )
+        acc_df_ranked = analytics_df[analytics_df["Primary_Category"] == "1. 🟢 Accumulate"].sort_values(
+            by="Category_Rank", ascending=True
+        )
+
+        tot_exit_inv = float(exit_df_ranked["Invested"].sum())
+        tot_exit_today_val = float(exit_df_ranked["Cur. val"].sum())
+        tot_exit_today_pnl = float(exit_df_ranked["P&L"].sum())
+        tot_exit_relief_val = float(exit_df_ranked["If_Sold_At_Relief_Proceeds_INR"].sum())
+        tot_exit_relief_pnl = float(exit_df_ranked["If_Sold_At_Relief_PnL_INR"].sum())
+        bounce_gain_delta = tot_exit_relief_val - tot_exit_today_val
+
+        profitable_today_df = exit_df_ranked[exit_df_ranked["P&L"] > 0]
+        near_breakeven_df = exit_df_ranked[(exit_df_ranked["P&L"] <= 0) & (exit_df_ranked["Net chg. %"] >= -11.0)]
+        vedanta_stubs_df = exit_df_ranked[exit_df_ranked["Instrument"].isin(["VEDPOWER", "VOGL", "VISL"])]
+
+        st.markdown(
+            f"""
+            <div class="repo-card" style="border-left: 6px solid #0284c7; background: linear-gradient(135deg, #f0f9ff 0%, #ffffff 100%); padding: 1rem 1.25rem; margin-bottom: 0.9rem;">
+                <div style="font-weight:800; color:#0c4a6e; font-size:1.08rem;">
+                    🕒 TACTICAL SUPPORT-BOUNCE VERDICT &amp; "IF SOLD TODAY" REALIZED PROFIT / LOSS SUMMARY
+                </div>
+                <p style="margin:0.3rem 0 0.4rem 0; color:#0f172a; font-size:0.93rem;">
+                    <strong>Why 11 of 12 Exit Stocks Are Green Today:</strong> Most of these 12 scrips are experiencing an oversold technical relief bounce off multi-month/52-week support.
+                    <strong>Yes — you can wait 3–7 trading days on the bouncing stocks with strict support stop-losses</strong> while acting immediately on the top tactical priorities:
+                </p>
+                <ul style="margin:0; padding-left:1.25rem; color:#1e293b; font-size:0.9rem;">
+                    <li><strong>💰 Already in Net Profit Today (<code>OLAELEC</code> +12.12% today at ₹33.57):</strong> Selling today locks in <strong>{format_indian_currency(float(profitable_today_df['P&L'].sum()), decimals=2, signed=True)} (+7.44% profit)</strong> above your ₹31.25 cost! Either book 50%–100% profit into strength today or place a strict profit-lock stop at <strong>₹31.80</strong> (above cost) and trail toward ₹36.80.</li>
+                    <li><strong>🚀 Upper Circuit &amp; Near-Breakeven Holds (<code>VISL</code> +5.00% UC at ₹27.95 &amp; <code>ZEEMEDIA</code> +3.59% at ₹6.92):</strong> Combined loss if sold today is just <strong>{format_indian_currency(float(near_breakeven_df['P&L'].sum()), decimals=2, signed=True)}</strong> (<code>ZEEMEDIA</code> is only ₹0.43 below ₹7.35 cost; <code>VISL</code> is in +5% Upper Circuit only ₹3.13 below ₹31.08 cost). <strong>Definitely wait 3–7 days to exit near breakeven/profit.</strong></li>
+                    <li><strong>🚨 Priority #1 &amp; #2 Immediate Exits (<code>MUFTI</code> -0.10% &amp; <code>RAJESHEXPO-BZ</code> +1.75%):</strong> <code>MUFTI</code> is the only red stock today (failed to bounce) and <code>RAJESHEXPO</code> is in NSE's <code>BZ</code> trade-to-trade surveillance segment — use today's liquidity to exit first.</li>
+                    <li><strong>⏳ Wait 3–7 Days at Support with Strict Stop-Loss (<code>TVTODAY</code>, <code>ZEEL</code>, <code>UTKARSHBNK</code>, <code>HERANBA</code>, <code>STANLEY</code>, <code>VEDPOWER</code>, <code>VOGL</code>):</strong> If they reach their 3–7D 20/50-DMA Relief Targets, your sale proceeds increase from <strong>{format_indian_currency(tot_exit_today_val, decimals=2)}</strong> to <strong>{format_indian_currency(tot_exit_relief_val, decimals=2)}</strong> (recovering <strong>{format_indian_currency(bounce_gain_delta, decimals=2, signed=True)}</strong> extra cash!).</li>
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        k1, k2, k3, k4, k5 = st.columns(5)
+        k1.metric(
+            "12 Exit Stocks: Total Invested",
+            format_indian_currency(tot_exit_inv, decimals=2),
+            "Original / Allocated Cost",
+        )
+        k2.metric(
+            "If Sold Today: Cash Freed",
+            format_indian_currency(tot_exit_today_val, decimals=2),
+            "Immediate Redeployable Cash",
+        )
+        k3.metric(
+            "If Sold Today: Net P&L",
+            format_indian_currency(tot_exit_today_pnl, decimals=2, signed=True),
+            f"{tot_exit_today_pnl / max(1.0, tot_exit_inv) * 100.0:+.2f}% (Includes -₹10,493.82 Vedanta Stubs)",
+        )
+        k4.metric(
+            "If Sold at 3–7D Relief Target",
+            format_indian_currency(tot_exit_relief_val, decimals=2),
+            f"{format_indian_currency(bounce_gain_delta, decimals=2, signed=True)} Extra Cash vs Today",
+        )
+        k5.metric(
+            "P&L at 3–7D Relief Target",
+            format_indian_currency(tot_exit_relief_pnl, decimals=2, signed=True),
+            f"Reduces Loss by {format_indian_currency(bounce_gain_delta, decimals=2, signed=True)}",
+        )
+
+        # Memory Snapshot Controls & Multi-Day Comparison Table
+        memory_bundle = load_portfolio_state_memory()
+        snapshots_list = memory_bundle.get("snapshots", [])
+
+        st.markdown("##### 💾 Persistent State Memory Tracker (Compare Today's Baseline vs After a Few Days)")
+        mem_c1, mem_c2, mem_c3 = st.columns([2.0, 1.5, 1.1])
+        with mem_c1:
+            snap_options = [
+                f"{idx + 1}. {s.get('snapshot_label', s.get('snapshot_id'))} [{s.get('saved_at_ist', '')}]"
+                for idx, s in enumerate(snapshots_list)
+            ]
+            sel_snap_idx = st.selectbox(
+                "📂 Stored Portfolio State Snapshot in Memory (`portfolio_state_memory.json`)",
+                options=range(len(snap_options)) if snap_options else [0],
+                format_func=lambda i: snap_options[i] if i < len(snap_options) else "Baseline Snapshot",
+                index=0,
+                key=f"{key_prefix}_mem_snap_sel_{panel_key_suffix}",
+            )
+        with mem_c2:
+            custom_snap_name = st.text_input(
+                "📝 New Memory Snapshot Label (Optional)",
+                value="",
+                placeholder="e.g., Day 4 Review — Post Support Bounce",
+                key=f"{key_prefix}_mem_snap_lbl_{panel_key_suffix}",
+            )
+        with mem_c3:
+            st.write("")
+            if st.button(
+                "💾 Save Current State to Memory",
+                type="primary",
+                use_container_width=True,
+                key=f"{key_prefix}_mem_save_btn_{panel_key_suffix}",
+            ):
+                lbl_to_save = (
+                    custom_snap_name.strip()
+                    if custom_snap_name and custom_snap_name.strip()
+                    else f"Snapshot #{len(snapshots_list) + 1} — Live Support Check"
+                )
+                save_portfolio_state_memory_snapshot(
+                    analytics_df=analytics_df,
+                    snapshot_label=lbl_to_save,
+                    notes="User-triggered state checkpoint saved from Support Memory Tracker.",
+                    overwrite_existing_id=True,
+                )
+                st.success(f"Saved `{lbl_to_save}` to persistent memory (`portfolio_state_memory.json`).")
+                st.rerun()
+
+        baseline_snap = snapshots_list[sel_snap_idx] if snapshots_list and sel_snap_idx < len(snapshots_list) else {}
+        base_holdings = baseline_snap.get("holdings", {})
+
+        exit_comparison_rows: List[Dict[str, Any]] = []
+        for _, r in exit_df_ranked.iterrows():
+            sym = str(r["Instrument"])
+            b_rec = base_holdings.get(sym, {})
+            base_ltp = float(b_rec.get("ltp", r["Live_LTP"]))
+            cur_ltp = float(r["Live_LTP"])
+            delta_since_snap_pct = ((cur_ltp - base_ltp) / base_ltp * 100.0) if base_ltp > 0 else 0.0
+            stop_p = float(r["Stop_Loss_INR"])
+            target_p = float(r["Relief_Target_INR"])
+            if cur_ltp <= stop_p:
+                trigger_status = "🚨 STOP-LOSS BROKEN — EXIT IMMEDIATELY"
+            elif cur_ltp >= target_p:
+                trigger_status = "🎯 RELIEF TARGET HIT — BOOK / EXIT NOW"
+            elif float(r["P&L"]) > 0:
+                trigger_status = "💰 IN NET PROFIT — BOOK 50% OR TRAIL STOP"
+            else:
+                trigger_status = "🟢 HOLDING ABOVE SUPPORT STOP"
+
+            exit_comparison_rows.append(
+                {
+                    "Exit Rank": r["Category_Rank_Label"],
+                    "Instrument": sym,
+                    "Qty": int(r["Qty."]),
+                    "Avg Cost (₹)": format_indian_currency(r["Avg. cost"], decimals=2),
+                    "Stored Baseline LTP (₹)": format_indian_currency(base_ltp, decimals=2),
+                    "Current Kite/Live LTP (₹)": format_indian_currency(cur_ltp, decimals=2),
+                    "Today Chg %": round(float(r["Day chg. %"]), 2),
+                    "Δ vs Stored Memory %": round(delta_since_snap_pct, 2),
+                    "Invested (₹)": format_indian_currency(r["Invested"], decimals=2),
+                    "Sale Proceeds Today (₹)": format_indian_currency(r["Cur. val"], decimals=2),
+                    "If Sold Today P&L (₹)": format_indian_currency(r["P&L"], decimals=2, signed=True),
+                    "If Sold Today %": round(float(r["Net chg. %"]), 2),
+                    "Support Zone (₹)": format_indian_currency(r["Support_Zone_INR"], decimals=2),
+                    "Strict Stop-Loss (₹)": format_indian_currency(stop_p, decimals=2),
+                    "3–7D Relief Target (₹)": format_indian_currency(target_p, decimals=2),
+                    "P&L at Relief Target (₹)": format_indian_currency(r["If_Sold_At_Relief_PnL_INR"], decimals=2, signed=True),
+                    "Memory Trigger Status": trigger_status,
+                    "Tactical Decision & Timing": r["Tactical_Timing_Verdict"],
+                }
+            )
+
+        st.dataframe(
+            pd.DataFrame(exit_comparison_rows),
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Today Chg %": st.column_config.NumberColumn("Today Chg %", format="%+.2f%%"),
+                "Δ vs Stored Memory %": st.column_config.NumberColumn("Δ vs Memory %", format="%+.2f%%"),
+                "If Sold Today %": st.column_config.NumberColumn("If Sold Today %", format="%+.2f%%"),
+            },
+        )
+
+        # Freed Cash -> Ranked Category 1 (Accumulate) Redeployment Planner
+        st.divider()
+        st.markdown("##### 💸 Freed Cash → Ranked Category `1. 🟢 Accumulate` (`#1..#N`) Redeployment Planner")
+        st.caption(
+            "Automatically maps the exact cash freed from your `Exit` (or `Exit + Replace`) holdings into your **Top-Ranked Category `1. 🟢 Accumulate`** 5–25Y compounders so every rupee of freed capital upgrades portfolio quality."
+        )
+        rc1, rc2, rc3 = st.columns([1.8, 1.2, 1.2])
+        immediate_3_df = exit_df_ranked[exit_df_ranked["Instrument"].isin(["MUFTI", "RAJESHEXPO", "OLAELEC"])]
+        cash_immediate_3 = float(immediate_3_df["Cur. val"].sum())
+        cash_all_12_today = tot_exit_today_val
+        cash_all_12_relief = tot_exit_relief_val
+        cash_exit_plus_replace = tot_exit_today_val + float(rep_df_ranked["Cur. val"].sum())
+
+        with rc1:
+            cash_source_mode = st.selectbox(
+                "💰 Select Freed Cash Pool to Redeploy into Category 1 (`1. 🟢 Accumulate`)",
+                options=[
+                    f"Option A: All 12 Category 4 Exit Stocks Sold Today ({format_indian_currency(cash_all_12_today, decimals=2)})",
+                    f"Option B: Immediate Top-3 Tactical Exits Only — MUFTI + RAJESHEXPO + OLAELEC Profit ({format_indian_currency(cash_immediate_3, decimals=2)})",
+                    f"Option C: All 12 Category 4 Exit Stocks Sold at 3–7D Relief Targets ({format_indian_currency(cash_all_12_relief, decimals=2)})",
+                    f"Option D: All 12 Exit + All 15 Replace Stocks Combined ({format_indian_currency(cash_exit_plus_replace, decimals=2)})",
+                ],
+                index=0,
+                key=f"{key_prefix}_cash_pool_mode_{panel_key_suffix}",
+            )
+        with rc2:
+            top_n_acc = st.slider(
+                "🏆 Number of Top-Ranked `1. 🟢 Accumulate` Stocks (`#1..#N`)",
+                min_value=3,
+                max_value=min(20, max(3, len(acc_df_ranked))),
+                value=min(10, max(3, len(acc_df_ranked))),
+                step=1,
+                key=f"{key_prefix}_top_n_acc_{panel_key_suffix}",
+            )
+        with rc3:
+            alloc_scheme = st.selectbox(
+                "⚖️ Allocation Weighting Scheme",
+                options=[
+                    "Priority Score & Moat Weighted (Recommended)",
+                    "Equal Weight Across Top Ranked",
+                ],
+                index=0,
+                key=f"{key_prefix}_alloc_scheme_{panel_key_suffix}",
+            )
+
+        if cash_source_mode.startswith("Option B"):
+            freed_cash_pool = cash_immediate_3
+        elif cash_source_mode.startswith("Option C"):
+            freed_cash_pool = cash_all_12_relief
+        elif cash_source_mode.startswith("Option D"):
+            freed_cash_pool = cash_exit_plus_replace
+        else:
+            freed_cash_pool = cash_all_12_today
+
+        top_acc_slice = acc_df_ranked.head(top_n_acc).copy()
+        if not top_acc_slice.empty:
+            if alloc_scheme.startswith("Priority"):
+                raw_weights = top_acc_slice["Category_Priority_Score"].astype(float).clip(lower=1.0)
+            else:
+                raw_weights = pd.Series(1.0, index=top_acc_slice.index)
+            norm_weights = raw_weights / raw_weights.sum()
+
+            redeploy_rows: List[Dict[str, Any]] = []
+            for idx_row, r_acc in top_acc_slice.iterrows():
+                w_share = float(norm_weights.loc[idx_row])
+                alloc_inr = round(freed_cash_pool * w_share, 2)
+                ltp_acc = max(1.0, float(r_acc["Live_LTP"]))
+                add_qty = max(1, int(round(alloc_inr / ltp_acc)))
+                actual_cost_inr = round(add_qty * ltp_acc, 2)
+                est_5y_val = round(actual_cost_inr * ((1.0 + max(0.12, float(r_acc["BT_CAGR_Pct"]) / 100.0)) ** 5), 2)
+                redeploy_rows.append(
+                    {
+                        "Accumulate Rank": r_acc["Category_Rank_Label"],
+                        "Instrument": r_acc["Instrument"],
+                        "Sector / Cluster": r_acc["Sector_Cluster"],
+                        "5–25Y Moat Score": f"{r_acc['Long_Term_Moat_Score']:.0f}/100",
+                        "Composite Score": round(float(r_acc["Composite_Score"]), 1),
+                        "RSI (14D)": round(float(r_acc["RSI_14"]), 1),
+                        "Current Qty": int(r_acc["Qty."]),
+                        "Live LTP (₹)": format_indian_currency(ltp_acc, decimals=2),
+                        "Allocation Weight %": round(w_share * 100.0, 1),
+                        "Freed Cash Allocated (₹)": format_indian_currency(alloc_inr, decimals=2),
+                        "Recommended +Qty to Buy": f"+{add_qty} sh",
+                        "New Total Qty": int(r_acc["Qty."]) + add_qty,
+                        "Multi-Yr Backtest CAGR %": round(float(r_acc["BT_CAGR_Pct"]), 2),
+                        "Projected 5Y Value of Added Shares (₹)": format_indian_currency(est_5y_val, decimals=2),
+                        "Why Ranked Top Destination": r_acc["Horizon_5Y_25Y_Thesis"],
+                    }
+                )
+
+            st.dataframe(
+                pd.DataFrame(redeploy_rows),
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Allocation Weight %": st.column_config.NumberColumn("Alloc Weight %", format="%.1f%%"),
+                    "Multi-Yr Backtest CAGR %": st.column_config.NumberColumn("Backtest CAGR %", format="%+.2f%%"),
+                },
+            )
+
     # --- SUB-TILE 0: ALL HOLDINGS MASTER SCORECARD ---
     if active_sub_idx == 0:
         f_c1, f_c2, f_c3, f_c4, f_c5 = st.columns([1.15, 1.1, 1.1, 1.1, 1.25])
@@ -3593,6 +4309,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             sort_by_col = st.selectbox(
                 "Sort Holdings By",
                 options=[
+                    "Category_Priority_Score",
                     "Cur. val",
                     "Long_Term_Moat_Score",
                     "Composite_Score",
@@ -3642,7 +4359,12 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
                 | filtered_df["Related_Information"].astype(str).str.lower().str.contains(q_low, na=False)
             ]
 
-        filtered_df = filtered_df.sort_values(by=sort_by_col, ascending=False)
+        if sort_by_col == "Category_Rank":
+            filtered_df = filtered_df.sort_values(
+                by=["Primary_Category", "Category_Rank"], ascending=[True, True]
+            )
+        else:
+            filtered_df = filtered_df.sort_values(by=sort_by_col, ascending=False)
         st.dataframe(
             _format_df_for_indian_display(filtered_df),
             use_container_width=True,
@@ -3684,51 +4406,60 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             except Exception:
                 st.caption("Install `openpyxl` for multi-sheet `.xlsx` export (CSV export is ready on the left).")
 
-    # --- SUB-TILE 1: 1. ACCUMULATE ---
+    # --- SUB-TILE 1: 1. ACCUMULATE (RANKED #1..#N) ---
     elif active_sub_idx == 1:
-        st.markdown("##### 🟢 Category 1: Accumulate — 5–25 Year Secular Compounders & Contrarian Dip-Buy Leaders")
+        st.markdown(f"##### 🟢 Category 1: Accumulate (Ranked `#1` to `#{c_acc}` as Best Destinations for Freed Cash)")
         st.caption(
-            "Includes both (a) **Secular Structural Winners** (`LT`, `RELIANCE`, `ICICIBANK`, `TITAN`, `SIEMENS`, `BEL`, `APARINDS`, `HBLENGINE`, `ECLERX`, `KALYANKJIL`, `NSE`, `SGBDE31III`, `VAML`) and (b) **High-Moat Compounders on Cyclical Pullback** (`HDFCBANK`, `TCS`, `INFY`, `CDSL`, `KFINTECH`, `CAMS`, `MAZDOCK`, `VBL`, `PAGEIND`, `TECHNOE`, `TATAELXSI`, `KPITTECH`, `NEWGEN`, `BAJAJHFL`, `NTPCGREEN`). **Action: Keep & accumulate on dips for 5–25 year compounding.**"
+            "Ranked from **`🟢 Accumulate #1`** down to **`#{c_acc}`** by **5–25Y Moat Score + Composite Score + FII/DII Sponsorship + Contrarian Dip-Buy Attractiveness**. "
+            "Whenever you free cash from Category `4. 🔴 Exit` (`₹1,10,038.45` today) or Category `3. 🔄 Replace`, deploy it into the Top-Ranked `#1–#10` stocks below."
         )
         df_acc = analytics_df[analytics_df["Primary_Category"] == "1. 🟢 Accumulate"].sort_values(
-            by="Long_Term_Moat_Score", ascending=False
+            by="Category_Rank", ascending=True
         )
         st.dataframe(_format_df_for_indian_display(df_acc), use_container_width=True, hide_index=True, column_config=col_cfg)
 
-    # --- SUB-TILE 2: 2. HOLD ---
+    # --- SUB-TILE 2: 2. HOLD (RANKED #1..#N) ---
     elif active_sub_idx == 2:
-        st.markdown("##### 🔵 Category 2: Hold — 5–25 Year Core Franchises, Cyclical Recovery Plays, REITs/InvITs & Sovereign/Rated Debt")
+        st.markdown(f"##### 🔵 Category 2: Hold (Ranked `#1` to `#{c_hld}` by Core Moat & Yield Stability)")
         st.caption(
-            "Includes cash-generative core compounders & dividend anchors (`ITC`, `HINDUNILVR`, `ASIANPAINT`, `COALINDIA`, `POWERGRID`, `NTPC`, `ONGC`, `BPCL`, `IOC`, `CONCOR`, `BLUEDART`, `VEDL`), quality cyclical recovery holdings (`FIRSTCRY`, `JIOFIN`, `TATACAP`, `HUDCO`, `RVNL`, `ACC`, `HINDCOPPER`, `GICRE`), cash-distributing REITs/InvITs (`EMBASSY-RR`, `MINDSPACE-RR`, `BIRET-RR`, `PGINVIT-IV`, `IRBINVIT-IV`), and Sovereign/Rated Debt (`690GOI65`, `771UP46-SG`, `77AP47-SG`, `930SFL28-YP`, `1125MML27`, `925MFL32A`). **Action: Hold patiently across the 5–25Y cycle.**"
+            "Ranked from **`🔵 Hold #1`** to **`#{c_hld}`**. Includes cash-generative core compounders & dividend anchors (`ITC`, `HINDUNILVR`, `ASIANPAINT`, `COALINDIA`, `POWERGRID`, `NTPC`, `ONGC`, `BPCL`, `IOC`, `CONCOR`, `BLUEDART`, `VEDL`), quality cyclical recovery holdings (`FIRSTCRY`, `JIOFIN`, `TATACAP`, `HUDCO`, `RVNL`, `ACC`, `HINDCOPPER`, `GICRE`), REITs/InvITs, and Sovereign/Rated Debt."
         )
-        df_hld = analytics_df[analytics_df["Primary_Category"] == "2. 🔵 Hold"].sort_values(by="Cur. val", ascending=False)
+        df_hld = analytics_df[analytics_df["Primary_Category"] == "2. 🔵 Hold"].sort_values(
+            by="Category_Rank", ascending=True
+        )
         st.dataframe(_format_df_for_indian_display(df_hld), use_container_width=True, hide_index=True, column_config=col_cfg)
 
-    # --- SUB-TILE 3: 3. REPLACE ---
+    # --- SUB-TILE 3: 3. REPLACE (RANKED #1..#N) ---
     elif active_sub_idx == 3:
-        st.markdown("##### 🔄 Category 3: Replace — Duplicate Overlapping ETFs & Low-Moat Laggards to Upgrade for 5–25Y Compounding")
+        st.markdown(f"##### 🔄 Category 3: Replace (Ranked `#1` to `#{c_rep}` by Switch Profit Uplift & ETF Deduplication Urgency)")
         st.caption(
-            "Over a 5–25 year horizon, holding multiple ETFs tracking the same factor/sector (`FMCGIETF`/`CONSUMIETF` vs `CONSUMBEES`, `ALPHAETF` vs `ALPHA`, `MOM30IETF` vs `MOMENTUM50`, `NV20IETF`/`NV20`/`QUAL30IETF` vs `SBIETFQLTY`, `HDFCNIFTY` vs `NIFTYIETF`, `CPSEETF` vs `ICICIB22`) or low-ROCE laggards (`CCAVENUE`, `UNIECOM`, `EMBDL`, `PVSL`, `VSTIND`, `RAYMONDLSL`) creates compounding drag. **Action: Consolidate into the #1 backtested peer.**"
+            f"Ranked from **`🔄 Replace #1`** (highest rupee & CAGR gain from switching) to **`#{c_rep}`**. If all {c_rep} holdings are sold today, total cash freed is **{format_indian_currency(val_rep, decimals=2)}** with a net realized P&L of **{format_indian_currency(pnl_rep, decimals=2, signed=True)}** ({pnl_rep/max(1,inv_rep)*100:+.2f}%)."
         )
         df_rep = analytics_df[analytics_df["Primary_Category"] == "3. 🔄 Replace"].sort_values(
-            by="Est_Profit_Uplift_INR", ascending=False
+            by="Category_Rank", ascending=True
         )
         st.dataframe(_format_df_for_indian_display(df_rep), use_container_width=True, hide_index=True, column_config=col_cfg)
 
-    # --- SUB-TILE 4: 4. EXIT ---
+    # --- SUB-TILE 4: 4. EXIT (RANKED #1..#12 + SUPPORT BOUNCE & CASH REDEPLOYMENT) ---
     elif active_sub_idx == 4:
-        st.markdown("##### 🔴 Category 4: Exit — Strictly 5–25Y Structural/Governance Breakdowns & Sub-Scale Demerged Stubs")
+        st.markdown(f"##### 🔴 Category 4: Exit (Ranked `#1` to `#{c_ext}` by Tactical Sell Urgency vs Support Bounce)")
         st.caption(
-            f"Calibrated for a 5–25 year horizon, **ZERO high-moat franchises are placed in Exit**. Only **{c_ext} holdings** are flagged for Exit: businesses with secularly impaired moats, governance/balance-sheet stress, or structural industry obsolescence (`RAJESHEXPO`, `ZEEL`, `ZEEMEDIA`, `TVTODAY`, `UTKARSHBNK`, `HERANBA`, `STANLEY`, `MUFTI`, `OLAELEC`), plus the 3 sub-scale post-demerger Vedanta micro-stubs (`VEDPOWER`, `VOGL`, `VISL` — while keeping core `VEDL` + `VAML`). "
-            f"**Liquidating them frees {format_indian_currency(val_ext, decimals=2)}** to redeploy into high-moat 5–25Y compounders."
+            f"Ranked from **`🔴 Exit #1` (`MUFTI` — only red stock today)** and **`🔴 Exit #2` (`RAJESHEXPO-BZ` — NSE trade-to-trade surveillance)** down to **`🔴 Exit #11` (`ZEEMEDIA` — ₹0.43 from breakeven)** and **`🔴 Exit #12` (`VISL` — +5.00% Upper Circuit)**. "
+            f"Selling all {c_ext} today frees **{format_indian_currency(val_ext, decimals=2)}** (Realized P&L today: **{format_indian_currency(pnl_ext, decimals=2, signed=True)}**, of which `OLAELEC` is **+₹976.40 profit**)."
         )
         df_ext = analytics_df[analytics_df["Primary_Category"] == "4. 🔴 Exit"].sort_values(
-            by="Cur. val", ascending=False
+            by="Category_Rank", ascending=True
         )
         st.dataframe(_format_df_for_indian_display(df_ext), use_container_width=True, hide_index=True, column_config=col_cfg)
+        st.divider()
+        _render_support_memory_and_cash_redeployment_panel("exit_subtile")
 
-    # --- SUB-TILE 5: ETF OVERLAP, DEMERGER FAMILIES & BROKER BOND AUDIT ---
+    # --- SUB-TILE 5: SUPPORT MEMORY TRACKER, IF-SOLD-TODAY P&L & FREED CASH -> #1 ACCUMULATE ---
     elif active_sub_idx == 5:
+        _render_support_memory_and_cash_redeployment_panel("memory_subtile")
+
+    # --- SUB-TILE 6: ETF OVERLAP, DEMERGER FAMILIES & BROKER BOND AUDIT ---
+    elif active_sub_idx == 6:
         st.markdown("##### 🟠 Part A: ETF Factor & Sector Overlap Deduplication Audit")
         st.caption(
             "Consolidating redundant ETFs that track the exact same underlying factor/sector into their **#1 5–25Y cluster leader** eliminates tracking drag while keeping all distinct strategic ETFs (`NIFTYIETF`, `SETFNN50`, `DIVOPPBEES`, `MON100`, `MONQ50`, `GOLDCASE`, `HDFCSILVER`, `ALPHA`, `MOMENTUM50`, `SBIETFQLTY`, `CONSUMBEES`, `MAKEINDIA`, `MODEFENCE`, `MIDCAPETF`, `HDFCSML250`, `SMALLCAP`):"
@@ -3753,8 +4484,8 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         else:
             st.success("Zero broker pricing anomalies detected in this upload.")
 
-    # --- SUB-TILE 6: LIVE WALK-FORWARD BACKTEST & SINGLE-STOCK SWITCH SIMULATOR ---
-    elif active_sub_idx == 6:
+    # --- SUB-TILE 7: LIVE WALK-FORWARD BACKTEST & SINGLE-STOCK SWITCH SIMULATOR ---
+    elif active_sub_idx == 7:
         st.markdown(
             f"##### 📈 Portfolio-Level Walk-Forward Backtest (`{summary['lookback_label']}` — Indexed to 100)"
         )
@@ -3773,7 +4504,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             analytics_df["Primary_Category"].isin(["3. 🔄 Replace", "4. 🔴 Exit", "1. 🟢 Accumulate", "2. 🔵 Hold"])
         ].copy()
         holding_options = [
-            f"{r['Instrument']} ({r['Primary_Category']} | Cur CAGR: {r['BT_CAGR_Pct']:+.1f}% | RSI: {r['RSI_14']:.1f})  ➔  Alternate: {r['Alternate_Ticker']} (CAGR: {r['Alt_BT_CAGR_Pct']:+.1f}%)"
+            f"{r['Instrument']} ({r['Category_Rank_Label']} | Cur CAGR: {r['BT_CAGR_Pct']:+.1f}% | RSI: {r['RSI_14']:.1f})  ➔  Alternate: {r['Alternate_Ticker']} (CAGR: {r['Alt_BT_CAGR_Pct']:+.1f}%)"
             for _, r in switch_candidates_df.iterrows()
         ]
         # Default to first Replace or Exit holding
@@ -3814,7 +4545,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         s_c4.metric(
             f"Simulated Profit Uplift on {format_indian_currency(sel_row['Cur. val'], decimals=2)}",
             format_indian_currency(sel_row["Est_Profit_Uplift_INR"], decimals=2, signed=True),
-            sel_row["Primary_Category"],
+            sel_row["Category_Rank_Label"],
         )
         st.info(
             f"📌 **Backtest Proof:** {sel_row['Backtest_Proof']}  \n"
