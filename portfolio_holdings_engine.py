@@ -3176,8 +3176,12 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
 
     if "admin_portfolio_profiles" not in st.session_state:
         st.session_state["admin_portfolio_profiles"] = {
-            "Portfolio #1 — Primary Multi-Asset Demat (102 Holdings)": DEFAULT_USER_HOLDINGS_TSV,
+            "Portfolio #1 — Primary Multi-Asset Demat (142 Holdings)": DEFAULT_USER_HOLDINGS_TSV,
         }
+    elif "Portfolio #1 — Primary Multi-Asset Demat (102 Holdings)" in st.session_state["admin_portfolio_profiles"]:
+        st.session_state["admin_portfolio_profiles"]["Portfolio #1 — Primary Multi-Asset Demat (142 Holdings)"] = (
+            st.session_state["admin_portfolio_profiles"].pop("Portfolio #1 — Primary Multi-Asset Demat (102 Holdings)")
+        )
 
     # -----------------------------------------------------------------
     # STEP 1: ADMIN PORTFOLIO PROFILE SELECTOR, UPLOAD EXCEL/CSV & SETTINGS
@@ -3224,7 +3228,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
                     "6M (126 Trading Days)",
                 ],
                 index=0,
-                key=f"{key_prefix}_lookback_select",
+                key=f"{key_prefix}_lookback_5y25y_select",
                 help="Defaults to 5-Year (1,260 trading days) multi-cycle compounding history so temporary 1-year cyclical pullbacks do not distort 5–25Y wealth compounding decisions.",
             )
             fetch_live_fund = st.checkbox(
@@ -3242,6 +3246,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
                 key=f"{key_prefix}_refresh_btn",
             ):
                 fetch_live_market_and_fundamental_bundle.clear()
+                st.cache_data.clear()
                 st.rerun()
 
             # Sample CSV Template download

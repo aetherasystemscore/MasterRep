@@ -51,11 +51,12 @@ except Exception:
     native_oi_interpreter = None
     HAS_NATIVE_OPEN_INTERPRETER = False
 
-from portfolio_holdings_engine import (
-    format_indian_currency,
-    render_portfolio_holdings_analytics_tab,
-    render_two_row_fixed_tiles,
-)
+import importlib
+import portfolio_holdings_engine as _phe
+_phe = importlib.reload(_phe)
+format_indian_currency = _phe.format_indian_currency
+render_portfolio_holdings_analytics_tab = _phe.render_portfolio_holdings_analytics_tab
+render_two_row_fixed_tiles = _phe.render_two_row_fixed_tiles
 
 # =====================================================================
 # PAGE CONFIGURATION
@@ -4205,7 +4206,8 @@ def render_master_dashboard() -> None:
     # TILE 7: PORTFOLIO HOLDINGS CRITIC, FII/DII TREND & BACKTESTED REPLACEMENTS
     # =================================================================
     elif active_main_tile == 6:
-        render_portfolio_holdings_analytics_tab(key_prefix="admin_port_lab")
+        _phe_live = importlib.reload(_phe)
+        _phe_live.render_portfolio_holdings_analytics_tab(key_prefix="admin_port_lab")
 
 
 
