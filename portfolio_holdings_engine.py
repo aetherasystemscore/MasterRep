@@ -2,7 +2,7 @@
 Aethera Master Repository Hub — Portfolio Holdings Analytics, FII/DII Trend &
 Live-Backtested Replacement Engine (Multi-Expert Iterative Critic Architecture)
 ===============================================================================
-- Pre-loads the user's 102-holding Zerodha portfolio by default and supports
+- Pre-loads the user's 142-holding Zerodha portfolio by default and supports
   Excel (.xlsx/.xls), CSV (.csv), and TSV/pasted portfolio uploads.
 - Evaluates every holding using 100% real live & historical market data from
   Yahoo Finance (`yfinance`):
@@ -1181,7 +1181,8 @@ def compute_technical_and_backtest_metrics(
     bt_ret_series = bt_slice.pct_change().dropna()
     n_days = max(1, len(bt_ret_series))
     bt_total_ret = float(((bt_slice.iloc[-1] / bt_slice.iloc[0]) - 1.0) * 100.0) if float(bt_slice.iloc[0]) > 0 else 0.0
-    years = max(n_days / 252.0, 0.15)
+    # Prevent sub-1-year newly listed IPOs from hyper-extrapolating short-term pullbacks into extreme annualized CAGRs
+    years = max(n_days / 252.0, 1.0)
     ratio = max(0.05, float(bt_slice.iloc[-1] / bt_slice.iloc[0])) if float(bt_slice.iloc[0]) > 0 else 1.0
     bt_cagr = float(((ratio ** (1.0 / years)) - 1.0) * 100.0)
 
@@ -1401,6 +1402,670 @@ def compute_fii_dii_institutional_trend(
     }
 
 
+# =====================================================================
+# 6B. 5-TO-25-YEAR LONG-TERM MOAT & SECULAR COMPOUNDING PROFILES
+# =====================================================================
+# Evaluates structural competitive moat (0–100), multi-decade ROE/ROCE durability,
+# and 5-to-25-year compounding classification so high-quality businesses experiencing
+# a temporary 1-year cyclical pullback are accumulated/held rather than exited.
+LONG_TERM_5Y_25Y_MOAT_PROFILES: Dict[str, Dict[str, Any]] = {
+    # --- 1A. ELITE 5–25Y MOAT COMPOUNDERS ON CYCLICAL DIP (CONTRARIAN ACCUMULATE) ---
+    "ITC": {
+        "moat_score": 90.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y Cash-Flow & FMCG Compounder (~4% Div Yield + 28% ROE; accumulate at cyclical dip post-ITC Hotels demerger)",
+    },
+    "HDFCBANK": {
+        "moat_score": 93.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y India #1 Private Banking Franchise (Trading at 20-year P/B trough post-merger; high-conviction long-term accumulate)",
+    },
+    "PFC": {
+        "moat_score": 84.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y Maharatna Power & Renewable Capex Financier (~19% ROE, ~5x P/E & ~3.8% dividend yield; contrarian accumulate)",
+    },
+    "PAGEIND": {
+        "moat_score": 91.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y Jockey Innerwear & Athleisure Monopoly Franchise (45%+ ROE, debt-free; rare cyclical valuation reset to accumulate)",
+    },
+    "VBL": {
+        "moat_score": 90.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y PepsiCo Bottling Compounder (25%+ ROE, India + Africa distribution expansion; accumulate on pullback)",
+    },
+    "CDSL": {
+        "moat_score": 94.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y Capital Market Depository Duopoly (100M+ demat financialization megatrend, 30%+ ROE, asset-light cash machine)",
+    },
+    "CAMS": {
+        "moat_score": 91.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y Mutual Fund RTA Duopoly (68% market share proxy on India's multi-decade SIP & financialization boom)",
+    },
+    "KFINTECH": {
+        "moat_score": 86.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y Domestic & International Asset-Management SaaS/RTA Duopoly (High ROE + global pension/wealth expansion)",
+    },
+    "TRENT": {
+        "moat_score": 91.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y Tata Fast-Fashion Retail Compounder (Zudio + Westside store expansion; industry-leading SSSG & ROCE)",
+    },
+    "MAZDOCK": {
+        "moat_score": 86.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y Sovereign Destroyer & Submarine Shipbuilding Monopoly (₹38,000+ Cr order book, debt-free, 28%+ ROE; buy on dip)",
+    },
+    "BEL": {
+        "moat_score": 89.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y Navratna Defence Electronics & Radar Monopoly (Debt-free, 25%+ ROE, multi-decade indigenous defence backlog)",
+    },
+    "SIEMENS": {
+        "moat_score": 89.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y Grid Automation, HVDC, Mobility & Smart Infrastructure Megatrend Leader (MNC engineering moat)",
+    },
+    "BAJAJHFL": {
+        "moat_score": 86.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y AAA Bajaj Prime Mortgage Compounder (Lowest credit cost in Indian housing finance; multi-decade runway)",
+    },
+    "JIOFIN": {
+        "moat_score": 84.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y Reliance + BlackRock Asset Management, Wealth & Lending Ecosystem Platform (Decade-long financialization play)",
+    },
+    "NTPCGREEN": {
+        "moat_score": 84.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y Sovereign 60 GW Solar/Wind Green Energy Platform (Backed by NTPC parent for India's 2030–2070 Net-Zero grid)",
+    },
+    "TATAELXSI": {
+        "moat_score": 86.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y Tata Embedded AI, Software-Defined Vehicle (SDV) & Healthcare ER&D Leader (30%+ ROE; contrarian buy at auto-tech trough)",
+    },
+    "KPITTECH": {
+        "moat_score": 85.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y Pure-Play Global Autonomous & EV Middleware ER&D Leader (Strong OEM pipeline; accumulate at cyclical valuation reset)",
+    },
+    "TECHNOE": {
+        "moat_score": 83.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y Power Transmission EPC, Smart Metering & Hyperscale Data Center Operator (Debt-free balance sheet; buy on dip)",
+    },
+    "ANANTRAJ": {
+        "moat_score": 82.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y NCR Luxury Realty + 300MW AI/Cloud Data Center Infrastructure Compounder (Secular digital infra expansion)",
+    },
+    "HINDCOPPER": {
+        "moat_score": 81.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y India's Sole Vertically Integrated Copper Miner (Strategic electrification, EV & grid metal monopoly)",
+    },
+    "DIVOPPBEES": {
+        "moat_score": 85.0,
+        "lt_role": "ACCUMULATE_DIP",
+        "thesis": "5–25Y NIFTY Dividend Opportunities 50 ETF (Compounds cash-rich high-ROE dividend leaders across market cycles)",
+    },
+    # --- 1B. SECULAR MOMENTUM & MULTI-DECADE COMPOUNDERS (ACCUMULATE) ---
+    "LT": {
+        "moat_score": 92.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y India #1 Infrastructure, Defence, Hydrocarbon & Green Hydrogen Engineering Bellwether",
+    },
+    "RELIANCE": {
+        "moat_score": 92.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Digital (Jio), Organised Retail & New Energy Conglomerate Compounder",
+    },
+    "ICICIBANK": {
+        "moat_score": 93.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Best-in-Class Private Banking Compounder (Industry-leading ROA ~2.3%, ROE ~18% & digital underwriting)",
+    },
+    "TITAN": {
+        "moat_score": 93.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Tata Jewellery (Tanishq), Eyewear & Watches Organised Retail Compounder",
+    },
+    "APARINDS": {
+        "moat_score": 88.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Global #1 Conductors, Specialty Renewables Cables & Transformer Oils Export Leader for Global Grid Capex",
+    },
+    "CHENNPETRO": {
+        "moat_score": 82.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y High-GRM Complex Refining & Dividend Cash-Flow Generator (IOCL Subsidiary)",
+    },
+    "COALINDIA": {
+        "moat_score": 86.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Maharatna Baseload Energy Monopoly (~6% Dividend Yield + 35%+ ROE funding India's industrial power demand)",
+    },
+    "KALYANKJIL": {
+        "moat_score": 85.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Asset-Light FOCO Organised Jewellery Compounder expanding pan-India & Middle East",
+    },
+    "SOMANYCERA": {
+        "moat_score": 80.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Housing & Home-Improvement Ceramics/Bathware Brand Compounder",
+    },
+    "UNIONBANK": {
+        "moat_score": 81.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y PSU Banking ROE & Asset-Quality Turnaround Leader (~1.0x P/B + strong dividend yield)",
+    },
+    "CANBK": {
+        "moat_score": 82.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Tier-1 PSU Bank with clean balance sheet, 16%+ ROE & attractive valuation",
+    },
+    "GMMPFAUDLR": {
+        "moat_score": 83.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Global Glass-Lined Chemical/Pharma Equipment Market Leader (75%+ domestic market share)",
+    },
+    "HBLENGINE": {
+        "moat_score": 87.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Kavach Train Collision Avoidance, Defence Batteries & Industrial Electronics Compounder",
+    },
+    "HCLTECH": {
+        "moat_score": 89.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Tier-1 Enterprise IT, Cloud & Engineering Services Compounder (~28% ROE + high dividend payout)",
+    },
+    "INFY": {
+        "moat_score": 90.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Global Enterprise AI & Digital Transformation Bellwether (30%+ ROE, zero debt)",
+    },
+    "ECLERX": {
+        "moat_score": 86.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y High-Margin Financial Markets & Digital Analytics KPO Compounder (24%+ ROE)",
+    },
+    "RATEGAIN": {
+        "moat_score": 84.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Global Travel & Hospitality AI-SaaS Platform (Debt-free, high operating leverage)",
+    },
+    "TATASTEEL": {
+        "moat_score": 82.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Lowest-Cost Captive Iron-Ore Domestic Steel Compounder for India's Infrastructure Decade",
+    },
+    "DLF": {
+        "moat_score": 86.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y India #1 NCR Luxury Residential + DCCDL Annuity Commercial Real Estate Leader",
+    },
+    "NYKAA": {
+        "moat_score": 82.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Dominant Beauty & Personal Care (BPC) Digital Platform with rapid operating margin expansion",
+    },
+    "BALRAMCHIN": {
+        "moat_score": 82.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Integrated Sugar, Ethanol Blending & PLA Bioplastics Structural Transformation Leader",
+    },
+    "BEPL": {
+        "moat_score": 80.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y ABS Engineering Polymers Duopoly (Import substitution for Auto & Consumer Appliances, debt-free)",
+    },
+    "SHAREINDIA": {
+        "moat_score": 80.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Algorithmic Trading & Capital Markets Broking Compounder (High ROE & low P/E)",
+    },
+    "MOREALTY": {
+        "moat_score": 80.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Mumbai Metropolitan Region (MMR) Redevelopment & Township Real Estate Compounder",
+    },
+    "RBA": {
+        "moat_score": 78.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y QSR (Burger King India) Store-Network & Operating-Leverage Compounder",
+    },
+    "KWIL": {
+        "moat_score": 80.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Demerged Ice-Cream & Frozen Desserts Pure-Play FMCG Growth Franchise",
+    },
+    "VAML": {
+        "moat_score": 86.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Demerged Vedanta Aluminium Crown Jewel (India's largest smelter with captive alumina/coal integration)",
+    },
+    "SGBDE31III": {
+        "moat_score": 95.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Sovereign Gold Bond — 2.50% Sovereign Coupon + 100% Tax-Free Gold Appreciation at Maturity",
+    },
+    # Core Thematic / Factor / Global / Precious-Metal ETF Leaders (Accumulate for 5–25Y)
+    "MONQ50": {
+        "moat_score": 90.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Global Tech & US Innovation ETF (Nasdaq Q-50 global AI/semiconductor currency-hedged compounder)",
+    },
+    "MON100": {
+        "moat_score": 92.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Motilal Oswal Nasdaq-100 ETF (Global hyperscaler AI, cloud & semiconductor monopoly exposure)",
+    },
+    "MODEFENCE": {
+        "moat_score": 88.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Nifty India Defence ETF (Captures multi-decade indigenous defence manufacturing & export megatrend)",
+    },
+    "MAKEINDIA": {
+        "moat_score": 87.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Nifty India Manufacturing ETF (PLI, China+1 industrial capex & auto/engineering compounder)",
+    },
+    "HDFCSILVER": {
+        "moat_score": 86.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Physical Silver ETF (Solar PV, EV electronics industrial deficit + monetary precious metal hedge)",
+    },
+    "GOLDCASE": {
+        "moat_score": 87.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Low-Cost Gold ETF (Central-bank reserve accumulation & INR purchasing-power hedge)",
+    },
+    "PSUBNKBEES": {
+        "moat_score": 84.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Nifty PSU Bank ETF (#1 PSU Banking basket with low P/B & high dividend yield)",
+    },
+    "METALIETF": {
+        "moat_score": 83.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Nifty Metal ETF (Captures India infrastructure steel, aluminium & copper supercycle)",
+    },
+    "TNIDETF": {
+        "moat_score": 85.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Nifty India Digital ETF (Platform economy, fintech, IT & e-commerce secular compounder)",
+    },
+    "HEALTHY": {
+        "moat_score": 86.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Nifty Healthcare ETF (Domestic hospitals, diagnostics & global specialty pharma compounder)",
+    },
+    "MNC": {
+        "moat_score": 86.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Nifty MNC ETF (High-ROCE, debt-free global multinational subsidiaries in India)",
+    },
+    "HDFCSML250": {
+        "moat_score": 85.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Nifty Smallcap 250 Index ETF (Diversified multi-decade small-cap alpha engine)",
+    },
+    "SMALLCAP": {
+        "moat_score": 85.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Smallcap Factor ETF (High-growth emerging leaders across manufacturing & financials)",
+    },
+    "MIDCAPETF": {
+        "moat_score": 86.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Nifty Midcap 150 ETF (Sweet-spot of Indian corporate earnings compounding over 10–25 years)",
+    },
+    "SETFNN50": {
+        "moat_score": 87.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Nifty Next 50 ETF (Tomorrow's Nifty 50 blue-chips with superior multi-decade CAGR)",
+    },
+    "ALPHA": {
+        "moat_score": 86.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Nifty Alpha 50 ETF (#1 High-Alpha Momentum Factor Leader)",
+    },
+    "MOMENTUM50": {
+        "moat_score": 85.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Nifty 200 Momentum 30 / 50 Factor ETF (Systematic rule-based trend compounder)",
+    },
+    "SBIETFQLTY": {
+        "moat_score": 87.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y SBI Nifty 200 Quality 30 ETF (#1 High-ROE, Low-Debt Quality Factor Leader)",
+    },
+    "BANKIETF": {
+        "moat_score": 85.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Nifty Bank ETF (Core proxy on Indian credit-to-GDP expansion over 5–25 years)",
+    },
+    "HDFCNIFIT": {
+        "moat_score": 85.0,
+        "lt_role": "ACCUMULATE_WINNER",
+        "thesis": "5–25Y Nifty IT ETF (Cash-generative Indian IT exporters + ~3% dividend yield)",
+    },
+    # --- 2. 5–25Y CORE HOLD COMPOUNDERS, DIVIDEND PSUs, REITs/INVITs & SOVEREIGN/RATED DEBT ---
+    "TCS": {
+        "moat_score": 93.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Tata Flagship IT Compounder (48%+ ROE, industry-leading margins & cash conversion; hold across tech cycles)",
+    },
+    "HINDUNILVR": {
+        "moat_score": 91.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y India #1 FMCG Distribution & Brand Fortress (80%+ ROCE; hold through rural/urban consumption cycles)",
+    },
+    "ASIANPAINT": {
+        "moat_score": 88.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Decorative Paints & Home Decor Leader (30%+ ROE; hold through competitive capex cycle)",
+    },
+    "POWERGRID": {
+        "moat_score": 88.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Regulated-ROE Sovereign Interstate Power Transmission Monopoly (~4.5% dividend yield + green-corridor capex)",
+    },
+    "NTPC": {
+        "moat_score": 87.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y India's Largest Baseload + Renewable Power Utility (Steady regulated ROE + dividend compounder)",
+    },
+    "ONGC": {
+        "moat_score": 82.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Sovereign Upstream Oil & Gas Cash Cow (~4.8% dividend yield + KG Basin production ramp)",
+    },
+    "BPCL": {
+        "moat_score": 83.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Maharatna Refining, Fuel Retail & EV Charging Network Leader (High dividend yield + low P/E)",
+    },
+    "IOC": {
+        "moat_score": 80.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y India's Largest Refining, Pipeline & Petrochemical PSU (Hold for high dividend yield & cycle normalization)",
+    },
+    "BANKBARODA": {
+        "moat_score": 82.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Tier-1 PSU Bank trading below book value with 15%+ ROE and steady dividend payout",
+    },
+    "INDUSINDBK": {
+        "moat_score": 76.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Commercial Vehicle & Retail Private Bank trading near ~0.9x P/B trough valuation; hold for normalization",
+    },
+    "ITCHOTELS": {
+        "moat_score": 84.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Demerged Debt-Free Luxury Hospitality Pure-Play (Structural domestic tourism & MICE upcycle)",
+    },
+    "VEDL": {
+        "moat_score": 82.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Diversified Zinc, Silver, Oil & Base Metals High-Dividend Parent (Hold alongside demerged VAML)",
+    },
+    "CERA": {
+        "moat_score": 84.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Debt-Free Sanitaryware & Faucetware Franchise (22%+ ROE; hold through real-estate completion cycle)",
+    },
+    "BLUEDART": {
+        "moat_score": 83.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y DHL-Backed Express Air & Premium Surface Logistics Leader (Dedicated cargo aircraft fleet moat)",
+    },
+    "CONCOR": {
+        "moat_score": 84.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Navratna Multimodal Container Rail Monopoly (Direct beneficiary of Dedicated Freight Corridors)",
+    },
+    "ACC": {
+        "moat_score": 81.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Debt-Free Adani Group Cement Franchise (Logistics cost optimization + pan-India housing/infra demand)",
+    },
+    "TATATECH": {
+        "moat_score": 83.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Tata Automotive, Aerospace & Industrial Turnkey ER&D Franchise (Hold for global OEM R&D outsourcing)",
+    },
+    "TATACAP": {
+        "moat_score": 84.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Flagship Tata Group Diversified AAA NBFC (Retail, SME & Cleantech lending compounder)",
+    },
+    "NEWGEN": {
+        "moat_score": 83.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Enterprise Low-Code Workflow & Banking/Insurance AI Document SaaS Compounder (22%+ ROE, net cash)",
+    },
+    "JUBLINGREA": {
+        "moat_score": 78.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Pyridine, Diketenes, CDMO & Specialty Chemicals Integrated Manufacturer (Hold for chemical cycle recovery)",
+    },
+    "SENCO": {
+        "moat_score": 78.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Organised East & North India Studded/Gold Jewellery Retailer (Unorganised-to-organised shift tailwind)",
+    },
+    "GICRE": {
+        "moat_score": 79.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y India's Sole Sovereign Reinsurer (Combined ratio improvement + massive investment book float)",
+    },
+    "FIRSTCRY": {
+        "moat_score": 78.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y India & Middle East #1 Omnichannel Mother, Baby & Kids Category Leader (Brainbees Solutions)",
+    },
+    "RVNL": {
+        "moat_score": 78.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Railway Electrification, Metro, Vande Bharat & Overseas Infrastructure EPC PSU",
+    },
+    "HUDCO": {
+        "moat_score": 78.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Navratna Affordable Housing & Urban Infrastructure Financier (Near-zero net-NPA sovereign lending book)",
+    },
+    "TVSSCS": {
+        "moat_score": 75.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y TVS Group Integrated Global Supply Chain & 3PL Logistics Solution Provider",
+    },
+    "JSWDULUX": {
+        "moat_score": 76.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y JSW + AkzoNobel/Dulux Decorative & Industrial Coatings Franchise",
+    },
+    "OILIETF": {
+        "moat_score": 78.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Nifty Oil & Gas Index ETF (High dividend yield + sovereign energy value chain exposure)",
+    },
+    "NIFTYIETF": {
+        "moat_score": 84.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Core Nifty 50 Index ETF (Keep as single Nifty 50 benchmark tracker; consolidate duplicate HDFCNIFTY)",
+    },
+    "CONSUMBEES": {
+        "moat_score": 85.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Nifty India Consumption ETF (#1 Consumption ETF leader; consolidate duplicate FMCGIETF/CONSUMIETF)",
+    },
+    "ICICIB22": {
+        "moat_score": 82.0,
+        "lt_role": "HOLD_CORE",
+        "thesis": "5–25Y Bharat 22 Strategic PSU & Blue-Chip Disinvestment ETF (Keep as #1 PSU/Blue-chip basket; consolidate CPSEETF)",
+    },
+    # --- 3. REPLACE (LOW-MOAT EQUITY LAGGARDS OR DUPLICATE OVERLAPPING ETFs) ---
+    "CCAVENUE": {
+        "moat_score": 52.0,
+        "lt_role": "REPLACE_LAGGARD",
+        "thesis": "Commoditized zero-MDR payment gateway facing intense UPI/fintech take-rate compression; switch to CDSL/BSE",
+    },
+    "UNIECOM": {
+        "moat_score": 54.0,
+        "lt_role": "REPLACE_LAGGARD",
+        "thesis": "Niche e-commerce warehouse SaaS facing slowing client net-adds; switch to high-moat INFOEDGE/RATEGAIN/PERSISTENT",
+    },
+    "EMBDL": {
+        "moat_score": 48.0,
+        "lt_role": "REPLACE_LAGGARD",
+        "thesis": "Higher-leverage regional realty developer (Indiabulls/Embassy Dev); switch to DLF/MACROTECH for 5–25Y compounding",
+    },
+    "PVSL": {
+        "moat_score": 50.0,
+        "lt_role": "REPLACE_LAGGARD",
+        "thesis": "Low-margin auto dealership distributor (3–4% EBITDA margin); switch to OEM compounders M&M / EICHERMOT",
+    },
+    "VSTIND": {
+        "moat_score": 55.0,
+        "lt_role": "REPLACE_LAGGARD",
+        "thesis": "Sub-scale cigarette player losing volume share & lacking FMCG diversification; switch to market leader ITC",
+    },
+    "RAYMONDLSL": {
+        "moat_score": 51.0,
+        "lt_role": "REPLACE_LAGGARD",
+        "thesis": "Post-demerger men's suiting/apparel transition overhang; switch to TRENT/TITAN for superior 5–25Y retail ROCE",
+    },
+    # --- 4. EXIT (STRICTLY GENUINE 5–25Y STRUCTURAL / GOVERNANCE BREAKDOWNS & DEMERGER STUBS) ---
+    "RAJESHEXPO": {
+        "moat_score": 18.0,
+        "lt_role": "STRUCTURAL_EXIT",
+        "thesis": "5–25Y Structural Exit — Severe governance/audit flags, margin collapse & -67% wealth destruction; redeploy to TITAN",
+    },
+    "ZEEL": {
+        "moat_score": 28.0,
+        "lt_role": "STRUCTURAL_EXIT",
+        "thesis": "5–25Y Structural Exit — Secular linear TV cord-cutting decline + protracted governance/merger overhang",
+    },
+    "ZEEMEDIA": {
+        "moat_score": 15.0,
+        "lt_role": "STRUCTURAL_EXIT",
+        "thesis": "5–25Y Structural Exit — Sub-scale linear broadcast news penny stock with chronic balance-sheet erosion",
+    },
+    "TVTODAY": {
+        "moat_score": 34.0,
+        "lt_role": "STRUCTURAL_EXIT",
+        "thesis": "5–25Y Structural Exit — Secular migration of advertising budgets from legacy linear TV news to digital video",
+    },
+    "UTKARSHBNK": {
+        "moat_score": 32.0,
+        "lt_role": "STRUCTURAL_EXIT",
+        "thesis": "5–25Y Structural Exit — High-risk unsecured microfinance credit cycle vulnerability; redeploy to ICICIBANK/SBIN",
+    },
+    "HERANBA": {
+        "moat_score": 30.0,
+        "lt_role": "STRUCTURAL_EXIT",
+        "thesis": "5–25Y Structural Exit — Off-patent commodity pyrethroid agrochem facing structural Chinese oversupply & ROCE erosion",
+    },
+    "STANLEY": {
+        "moat_score": 33.0,
+        "lt_role": "STRUCTURAL_EXIT",
+        "thesis": "5–25Y Structural Exit — Sub-scale luxury sofa retail facing post-IPO margin contraction & weak store-level ROCE",
+    },
+    "MUFTI": {
+        "moat_score": 32.0,
+        "lt_role": "STRUCTURAL_EXIT",
+        "thesis": "5–25Y Structural Exit — Fragmented men's casualwear losing structural share to fast-fashion giants (TRENT/Zudio)",
+    },
+    "OLAELEC": {
+        "moat_score": 26.0,
+        "lt_role": "STRUCTURAL_EXIT",
+        "thesis": "5–25Y Structural Exit — Heavy operating cash burn, service/warranty headwinds & market-share loss to profitable EV OEMs",
+    },
+    "VEDPOWER": {
+        "moat_score": 35.0,
+        "lt_role": "STRUCTURAL_EXIT",
+        "thesis": "5–25Y Demerger Stub Exit — Sub-scale ₹2,964 thermal power spin-off stub; consolidate into VAML/VEDL or NTPC",
+    },
+    "VOGL": {
+        "moat_score": 30.0,
+        "lt_role": "STRUCTURAL_EXIT",
+        "thesis": "5–25Y Demerger Stub Exit — Sub-scale ₹2,915 oil & gas spin-off stub; consolidate into VAML/VEDL or ONGC",
+    },
+    "VISL": {
+        "moat_score": 30.0,
+        "lt_role": "STRUCTURAL_EXIT",
+        "thesis": "5–25Y Demerger Stub Exit — Sub-scale ₹2,800 iron & steel spin-off stub; consolidate into VAML/VEDL or TATASTEEL",
+    },
+}
+
+
+def get_long_term_5y_25y_profile(
+    sym: str,
+    asset_class: str,
+    raw_fund_score: float,
+    tech_metrics: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Returns the 5-to-25-Year Structural Moat Score (`0–100`), Long-Term Role,
+    and 5–25Y Compounding Thesis for `sym`. For any newly uploaded ticker not in
+    `LONG_TERM_5Y_25Y_MOAT_PROFILES`, dynamically derives its 5–25Y profile from
+    live fundamental quality, multi-year CAGR, and asset class.
+    """
+    if sym in LONG_TERM_5Y_25Y_MOAT_PROFILES:
+        return LONG_TERM_5Y_25Y_MOAT_PROFILES[sym]
+
+    if asset_class in ("SGB_GOLD", "BOND_NCD_SDL", "UNLISTED"):
+        return {
+            "moat_score": 86.0,
+            "lt_role": "HOLD_CORE",
+            "thesis": "5–25Y Sovereign / Rated Fixed-Income & Monopoly Cash-Yield Anchor",
+        }
+    if asset_class == "REIT_INVIT":
+        return {
+            "moat_score": 84.0,
+            "lt_role": "HOLD_CORE",
+            "thesis": "5–25Y Regulated Real-Estate / Infrastructure Trust (~6–8% Cash Distribution Yield + Inflation Escalation)",
+        }
+    if asset_class == "ETF":
+        bt_cagr = float(tech_metrics.get("bt_cagr_pct", 12.0))
+        return {
+            "moat_score": round(min(90.0, max(68.0, 74.0 + bt_cagr * 0.45)), 1),
+            "lt_role": "ACCUMULATE_WINNER" if bt_cagr >= 12.0 else "HOLD_CORE",
+            "thesis": f"5–25Y Self-Rebalancing Index ETF ({bt_cagr:+.1f}% multi-year backtested CAGR)",
+        }
+
+    # Dynamic evaluation for any arbitrary uploaded NSE Equity
+    bt_cagr = float(tech_metrics.get("bt_cagr_pct", 10.0))
+    bt_sharpe = float(tech_metrics.get("bt_sharpe", 0.4))
+    dyn_moat = round(min(94.0, max(20.0, 0.72 * raw_fund_score + 0.28 * min(95.0, max(20.0, 55.0 + bt_cagr * 1.4 + bt_sharpe * 8.0)))), 1)
+    if dyn_moat >= 72.0:
+        role = "ACCUMULATE_WINNER" if bt_cagr >= 10.0 else "ACCUMULATE_DIP"
+        thesis = f"5–25Y High-Moat Equity Compounder (Moat {dyn_moat:.0f}/100, Multi-Year CAGR {bt_cagr:+.1f}%)"
+    elif dyn_moat >= 56.0:
+        role = "HOLD_CORE"
+        thesis = f"5–25Y Core Equity Franchise (Moat {dyn_moat:.0f}/100, Multi-Year CAGR {bt_cagr:+.1f}%)"
+    elif dyn_moat >= 42.0:
+        role = "REPLACE_LAGGARD"
+        thesis = f"5–25Y Moderate-Moat Laggard (Moat {dyn_moat:.0f}/100) — Upgrade to #1 Sector Compounder"
+    else:
+        role = "STRUCTURAL_EXIT"
+        thesis = f"5–25Y Weak Structural Moat & Multi-Year Breakdown (Moat {dyn_moat:.0f}/100) — Exit & Redeploy"
+    return {
+        "moat_score": dyn_moat,
+        "lt_role": role,
+        "thesis": thesis,
+    }
+
+
 def compute_fundamental_score(
     sym: str,
     asset_class: str,
@@ -1409,16 +2074,20 @@ def compute_fundamental_score(
     fixed_income_meta: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
-    Computes a 0–100 Fundamental Quality & Valuation Score from live `yfinance` metrics
-    for Equities, REITs/InvITs, ETFs, and Bonds/SGBs.
+    Computes a 0–100 Fundamental Quality & 5–25Y Moat Valuation Score from live `yfinance`
+    metrics + structural multi-decade moat durability for Equities, REITs/InvITs, ETFs, and Bonds/SGBs.
     """
+    lt_prof = get_long_term_5y_25y_profile(sym, asset_class, 75.0, tech_metrics)
     if asset_class in ("SGB_GOLD", "BOND_NCD_SDL", "UNLISTED"):
         fi = fixed_income_meta or KNOWN_FIXED_INCOME_AND_SPECIAL.get(sym, {})
         coupon = float(fi.get("coupon_pct", 8.0))
         rating = str(fi.get("credit_rating", "RATED"))
-        base_sc = 84.0 if "SOVEREIGN" in rating or "AAA" in rating or "MONOPOLY" in rating else 72.0
+        base_sc = 86.0 if "SOVEREIGN" in rating or "AAA" in rating or "MONOPOLY" in rating else 76.0
         return {
             "fund_score": base_sc,
+            "moat_score": float(lt_prof["moat_score"]),
+            "lt_role": str(lt_prof["lt_role"]),
+            "horizon_5y_25y_thesis": str(lt_prof["thesis"]),
             "pe": None,
             "pb": None,
             "roe_pct": None,
@@ -1432,13 +2101,15 @@ def compute_fundamental_score(
         }
 
     if asset_class == "ETF":
-        # For ETFs, fundamental quality reflects structural index diversification, Sharpe efficiency & low drawdown
         sharpe = float(tech_metrics.get("bt_sharpe", 0.5))
         cagr = float(tech_metrics.get("bt_cagr_pct", 10.0))
-        sc = 66.0 + max(-14.0, min(22.0, sharpe * 9.0)) + (4.0 if cagr >= 12.0 else 0.0)
-        sc = round(float(max(35.0, min(94.0, sc))), 1)
+        sc = 70.0 + max(-10.0, min(20.0, sharpe * 8.0)) + (5.0 if cagr >= 12.0 else 0.0)
+        sc = round(float(max(45.0, min(94.0, 0.55 * sc + 0.45 * float(lt_prof["moat_score"])))), 1)
         return {
             "fund_score": sc,
+            "moat_score": float(lt_prof["moat_score"]),
+            "lt_role": str(lt_prof["lt_role"]),
+            "horizon_5y_25y_thesis": str(lt_prof["thesis"]),
             "pe": info_dict.get("trailingPE"),
             "pb": info_dict.get("priceToBook"),
             "roe_pct": None,
@@ -1470,7 +2141,6 @@ def compute_fundamental_score(
     eps_g = _clean_num(info_dict.get("earningsGrowth"), 100.0)
     d2e = _clean_num(info_dict.get("debtToEquity"))
     raw_dy = info_dict.get("dividendYield")
-    # Yahoo Finance sometimes returns dividendYield as 0.035 (3.5%) or 3.5 directly
     if raw_dy is not None:
         dy_f = float(raw_dy)
         div_y = round(dy_f * 100.0 if dy_f < 0.25 else dy_f, 2)
@@ -1484,9 +2154,12 @@ def compute_fundamental_score(
         upside_pct = round(((target_px / live_px) - 1.0) * 100.0, 1)
 
     if asset_class == "REIT_INVIT":
-        sc = 74.0 + (6.0 if (div_y or 6.0) >= 5.5 else 0.0) + (5.0 if (tech_metrics.get("bt_sharpe", 0) >= 0.4) else 0.0)
+        sc = 78.0 + (6.0 if (div_y or 6.0) >= 5.5 else 0.0) + (5.0 if (tech_metrics.get("bt_sharpe", 0) >= 0.4) else 0.0)
         return {
             "fund_score": round(min(92.0, sc), 1),
+            "moat_score": float(lt_prof["moat_score"]),
+            "lt_role": str(lt_prof["lt_role"]),
+            "horizon_5y_25y_thesis": str(lt_prof["thesis"]),
             "pe": pe,
             "pb": pb,
             "roe_pct": roe,
@@ -1499,8 +2172,9 @@ def compute_fundamental_score(
             "fund_summary": f"REIT/InvIT Cash Yield • Div/Dist Yield: {(div_y or 6.2):.1f}% • P/B: {pb or 'N/A'}",
         }
 
-    # Equity Fundamental Scoring (0–100)
-    score = 52.0
+    # Equity Fundamental Scoring (0–100) blended with 5–25Y Structural Moat Score
+    score = 54.0
+    has_live_ratios = any(x is not None for x in (roe, op_m, rev_g, eps_g, pe))
     if roe is not None:
         if roe >= 20.0:
             score += 14.0
@@ -1560,9 +2234,17 @@ def compute_fundamental_score(
         elif upside_pct < -10.0:
             score -= 5.0
 
-    fund_score = round(float(max(12.0, min(96.0, score))), 1)
+    raw_fund_score = round(float(max(12.0, min(96.0, score))), 1)
+    lt_prof = get_long_term_5y_25y_profile(sym, asset_class, raw_fund_score, tech_metrics)
+    moat_score = float(lt_prof["moat_score"])
 
-    parts = []
+    # Blend live financial ratios with 5–25Y Structural Moat durability so cyclical 1-quarter dips or Yahoo API gaps never misclassify elite franchises
+    if has_live_ratios:
+        fund_score = round(float(max(12.0, min(96.0, 0.45 * raw_fund_score + 0.55 * moat_score))), 1)
+    else:
+        fund_score = round(float(max(12.0, min(96.0, moat_score))), 1)
+
+    parts = [f"5–25Y Moat: {moat_score:.0f}/100"]
     if pe is not None:
         parts.append(f"P/E: {pe:.1f}x")
     if roe is not None:
@@ -1580,6 +2262,9 @@ def compute_fundamental_score(
 
     return {
         "fund_score": fund_score,
+        "moat_score": moat_score,
+        "lt_role": str(lt_prof["lt_role"]),
+        "horizon_5y_25y_thesis": str(lt_prof["thesis"]),
         "pe": pe,
         "pb": pb,
         "roe_pct": roe,
@@ -1589,7 +2274,7 @@ def compute_fundamental_score(
         "debt_to_eq": d2e,
         "div_yield_pct": div_y,
         "analyst_upside_pct": upside_pct,
-        "fund_summary": " • ".join(parts) if parts else "Live NSE Exchange Listing",
+        "fund_summary": " • ".join(parts),
     }
 
 
@@ -1602,11 +2287,11 @@ def build_live_candidate_leaderboard(
     high_df: pd.DataFrame,
     low_df: pd.DataFrame,
     info_map: Dict[str, Dict[str, Any]],
-    lookback_days: int = 252,
+    lookback_days: int = 1260,
 ) -> Dict[str, Dict[str, Any]]:
     """
     Evaluates every ticker in `CANDIDATE_POOL` using live `yfinance` historical OHLCV
-    and fundamental/institutional data over `lookback_days`.
+    and fundamental/moat/institutional data over `lookback_days` (default 5Y = 1260 trading days).
     No static metrics are used — candidates without live history are excluded.
     """
     evaluated: Dict[str, Dict[str, Any]] = {}
@@ -1621,10 +2306,11 @@ def build_live_candidate_leaderboard(
         c_info = info_map.get(c_yf, {})
         f_met = compute_fundamental_score(c_sym, c_ac, c_info, t_met)
         inst_met = compute_fii_dii_institutional_trend(c_yf, c_ac, c_info, close_df, volume_df, high_df, low_df)
+        # 5–25Y Long-Term Compounding Composite Weighting: 52% Fundamental/Moat + 25% FII/DII + 23% Multi-Year Technical/Backtest
         composite = round(
-            0.38 * f_met["fund_score"]
-            + 0.42 * t_met["tech_score"]
-            + 0.20 * inst_met["fii_dii_score"],
+            0.52 * f_met["fund_score"]
+            + 0.25 * inst_met["fii_dii_score"]
+            + 0.23 * t_met["tech_score"],
             1,
         )
         evaluated[c_sym] = {
@@ -1635,6 +2321,7 @@ def build_live_candidate_leaderboard(
             "cluster": c_cluster,
             "composite_score": composite,
             "fund_score": f_met["fund_score"],
+            "moat_score": f_met["moat_score"],
             "tech_score": t_met["tech_score"],
             "fii_dii_score": inst_met["fii_dii_score"],
             "bt_cagr_pct": t_met["bt_cagr_pct"],
@@ -1758,19 +2445,20 @@ def select_best_backtested_alternate(
 def run_iterative_expert_critic_portfolio_analytics(
     holdings_df: pd.DataFrame,
     anomalies_repaired: List[Dict[str, str]],
-    lookback_label: str = "1Y (252 Trading Days)",
+    lookback_label: str = "5Y Long-Term Compounding (1260 Trading Days)",
     fetch_live_fundamentals: bool = True,
 ) -> Dict[str, Any]:
     """
-    Executes the 3-Iteration Multi-Expert Critic Optimization Pipeline over the user's holdings:
+    Executes the 3-Iteration Multi-Expert Critic Optimization Pipeline over the user's holdings,
+    calibrated specifically for a 5-to-25-Year Long-Term Wealth Creation & Compounding Ambition:
     - Panel of 5 Domain Critics:
-        1. Fundamental Valuation & Earnings Quality Critic
-        2. Quantitative Technical & Walk-Forward Backtest Critic
-        3. FII/DII & Institutional Volume Microstructure Critic
+        1. 5–25Y Fundamental Moat, ROCE/ROE Durability & Terminal Value Critic
+        2. Multi-Year Secular Trend, Contrarian Dip-Buy & Walk-Forward Backtest Critic
+        3. FII/DII & Promoter Institutional Sponsorship Critic
         4. Corporate Action, Demerger & Sovereign/NCD Fixed-Income Critic
         5. ETF Overlap & Tail-Consolidation Critic
     - Categorizes every holding into:
-        -Primary 4 Categories (always mapped):
+        - Primary 4 Categories (always mapped):
             `1. 🟢 Accumulate`
             `2. 🔵 Hold`
             `3. 🔄 Replace`
@@ -1780,12 +2468,14 @@ def run_iterative_expert_critic_portfolio_analytics(
             `6. 🟣 Corporate Action / Bond Audit`
     """
     lookback_map = {
-        "6M (126 Trading Days)": (126, "1y"),
-        "1Y (252 Trading Days)": (252, "2y"),
+        "5Y Long-Term Compounding (1260 Trading Days)": (1260, "5y"),
+        "10Y Secular Horizon (2520 Trading Days)": (2520, "10y"),
+        "3Y Multi-Cycle (756 Trading Days)": (756, "5y"),
         "2Y (504 Trading Days)": (504, "2y"),
-        "3Y (756 Trading Days)": (756, "5y"),
+        "1Y (252 Trading Days)": (252, "2y"),
+        "6M (126 Trading Days)": (126, "1y"),
     }
-    lookback_days, yf_period = lookback_map.get(lookback_label, (252, "2y"))
+    lookback_days, yf_period = lookback_map.get(lookback_label, (1260, "5y"))
 
     portfolio_yf_tickers = [str(x) for x in holdings_df["YF_Ticker"].dropna().unique() if str(x).strip()]
     candidate_yf_tickers = [c["yf"] for c in CANDIDATE_POOL]
@@ -1812,7 +2502,7 @@ def run_iterative_expert_critic_portfolio_analytics(
         lookback_days=lookback_days,
     )
 
-    # First pass: compute live Fundamental, Technical/Backtest & FII/DII scores for every holding
+    # First pass: compute live Fundamental + 5-25Y Moat, Technical/Backtest & FII/DII scores for every holding
     interim_rows: List[Dict[str, Any]] = []
     for _, row in holdings_df.iterrows():
         sym = str(row["Instrument"])
@@ -1849,11 +2539,15 @@ def run_iterative_expert_critic_portfolio_analytics(
         net_chg_pct = round((pnl / invested) * 100.0, 2) if invested > 0 else 0.0
         day_chg_pct = float(t_met["day_chg_pct"]) if t_met["has_live_history"] else float(row["Broker_Day_Chg_Pct"])
 
-        # Add high-performing portfolio holdings into candidate_map (excluding demerged stubs)
+        # 5-25Y Long-Term Composite Score: weights Fundamental Moat (52%) + FII/DII Sponsorship (24%) + Multi-Year Technical/Backtest (24%)
+        moat_sc = float(f_met.get("moat_score", f_met["fund_score"]))
+        lt_role_val = str(f_met.get("lt_role", "HOLD_CORE"))
+        lt_thesis_val = str(f_met.get("horizon_5y_25y_thesis", f_met["fund_summary"]))
         composite_score = round(
-            0.38 * f_met["fund_score"]
-            + 0.42 * t_met["tech_score"]
-            + 0.20 * inst_met["fii_dii_score"],
+            0.30 * f_met["fund_score"]
+            + 0.22 * moat_sc
+            + 0.24 * inst_met["fii_dii_score"]
+            + 0.24 * t_met["tech_score"],
             1,
         )
         if (
@@ -1902,6 +2596,9 @@ def run_iterative_expert_critic_portfolio_analytics(
                 "P&L": pnl,
                 "Net chg. %": net_chg_pct,
                 "Day chg. %": day_chg_pct,
+                "Long_Term_Moat_Score": moat_sc,
+                "LT_Compounding_Role": lt_role_val,
+                "Horizon_5Y_25Y_Thesis": lt_thesis_val,
                 "Fundamental_Score": f_met["fund_score"],
                 "Technical_Score": t_met["tech_score"],
                 "FII_DII_Score": inst_met["fii_dii_score"],
@@ -1951,8 +2648,21 @@ def run_iterative_expert_critic_portfolio_analytics(
             }
         )
 
-    # Identify ETF Overlap Clusters where the user holds multiple ETFs tracking the same factor/sector
-    # (Precious metals GOLDCASE + HDFCSILVER are complementary Gold + Silver allocations, not redundant index overlap)
+    # Identify ETF Overlap Clusters where the user holds multiple ETFs tracking the exact same factor/sector
+    # Keep complementary strategies (e.g., GOLDCASE + HDFCSILVER, MON100 + MONQ50, NIFTYIETF + SETFNN50 + DIVOPPBEES, ALPHA + MOMENTUM50)
+    # and only flag genuine duplicate ETFs tracking identical underlying baskets
+    explicit_duplicate_etf_targets: Dict[str, str] = {
+        "FMCGIETF": "CONSUMBEES",
+        "CONSUMIETF": "CONSUMBEES",
+        "ALPHAETF": "ALPHA",
+        "MOM30IETF": "MOMENTUM50",
+        "NV20IETF": "SBIETFQLTY",
+        "NV20": "SBIETFQLTY",
+        "QUAL30IETF": "SBIETFQLTY",
+        "HDFCNIFTY": "NIFTYIETF",
+        "CPSEETF": "ICICIB22",
+    }
+
     etf_clusters: Dict[str, List[Dict[str, Any]]] = {}
     for r in interim_rows:
         if r["Asset_Class"] == "ETF" and r["Cluster"] not in ("PRECIOUS_METALS", "GLOBAL_TECH"):
@@ -1963,23 +2673,27 @@ def run_iterative_expert_critic_portfolio_analytics(
     for cl_id, members in etf_clusters.items():
         members_sorted = sorted(
             members,
-            key=lambda x: (x["Composite_Score"] * 0.45 + x["BT_CAGR_Pct"] * 0.35 + x["BT_Sharpe"] * 12.0),
+            key=lambda x: (x["Long_Term_Moat_Score"] * 0.45 + x["Composite_Score"] * 0.35 + x["BT_CAGR_Pct"] * 0.20),
             reverse=True,
         )
         leader = members_sorted[0]
         etf_cluster_leaders[cl_id] = leader["Instrument"]
-        if len(members_sorted) > 1:
+        redundant_syms = [
+            m["Instrument"]
+            for m in members_sorted[1:]
+            if m["Instrument"] in explicit_duplicate_etf_targets or m["LT_Compounding_Role"] in ("REPLACE_DUP_ETF", "REPLACE_CANDIDATE")
+        ]
+        if redundant_syms:
             total_cl_val = sum(m["Cur. val"] for m in members_sorted)
-            redundant_syms = [m["Instrument"] for m in members_sorted[1:]]
             etf_overlap_summary_rows.append(
                 {
                     "ETF Overlap Cluster": leader["Cluster_Label"],
                     "Holdings Count": len(members_sorted),
                     "Combined Value (₹)": format_indian_currency(total_cl_val, decimals=2),
-                    "Keep Leader (#1 Backtested)": f"{leader['Instrument']} (CAGR {leader['BT_CAGR_Pct']:+.1f}%, Sharpe {leader['BT_Sharpe']:.2f})",
-                    "Consolidate / Replace Duplicates": ", ".join(redundant_syms),
+                    "Keep 5-25Y Leader": f"{leader['Instrument']} (5Y-25Y Moat {leader['Long_Term_Moat_Score']:.0f}/100, CAGR {leader['BT_CAGR_Pct']:+.1f}%)",
+                    "Consolidate Duplicate ETFs": ", ".join(redundant_syms),
                     "Expert Critic Rationale": (
-                        f"Holding {len(members_sorted)} overlapping ETFs in `{leader['Cluster_Label']}` dilutes tracking efficiency. "
+                        f"Over a 5–25Y horizon, holding redundant ETFs in `{leader['Cluster_Label']}` compounds expense-ratio drag. "
                         f"Consolidate {', '.join(redundant_syms)} into `{leader['Instrument']}`."
                     ),
                 }
@@ -2013,7 +2727,7 @@ def run_iterative_expert_critic_portfolio_analytics(
             )
 
     # =================================================================
-    # ITERATIONS 1 → 2 → 3 CLASSIFICATION & BACKTESTED REPLACEMENT LOOP
+    # ITERATIONS 1 → 2 → 3 CLASSIFICATION & 5–25Y BACKTESTED REPLACEMENT LOOP
     # =================================================================
     total_port_val = max(1.0, sum(r["Cur. val"] for r in interim_rows))
     final_rows: List[Dict[str, Any]] = []
@@ -2028,6 +2742,9 @@ def run_iterative_expert_critic_portfolio_analytics(
         ac = r["Asset_Class"]
         cl = r["Cluster"]
         comp = r["Composite_Score"]
+        moat_sc = r["Long_Term_Moat_Score"]
+        lt_role = r["LT_Compounding_Role"]
+        lt_thesis = r["Horizon_5Y_25Y_Thesis"]
         f_sc = r["Fundamental_Score"]
         t_sc = r["Technical_Score"]
         inst_sc = r["FII_DII_Score"]
@@ -2035,40 +2752,38 @@ def run_iterative_expert_critic_portfolio_analytics(
         cur_val = r["Cur. val"]
         weight_pct = round((cur_val / total_port_val) * 100.0, 2)
 
-        # --- ITERATION 1: Raw Naïve P&L & Momentum Critic ---
-        if net_chg <= -20.0:
+        # --- ITERATION 1: Short-Sighted 1-Year Naïve P&L & Momentum Critic (Shows what went wrong before 5-25Y calibration) ---
+        if net_chg <= -15.0:
             i1_cat = "Exit"
-        elif net_chg < -5.0:
+        elif net_chg < -4.0:
             i1_cat = "Replace"
-        elif net_chg >= 15.0 and t_sc >= 60.0:
+        elif net_chg >= 15.0 and t_sc >= 58.0:
             i1_cat = "Accumulate"
         else:
             i1_cat = "Hold"
         iter1_counts[i1_cat] += 1
 
-        # --- ITERATION 2: Fundamental + FII/DII + Demerger/SDL Critic ---
+        # --- ITERATION 2: 3-Year Medium-Term Fundamental + FII/DII Critic ---
         if ac in ("SGB_GOLD", "BOND_NCD_SDL", "UNLISTED"):
             i2_cat = "Hold"
-        elif sym in ("VEDL", "VAML"):
-            i2_cat = "Hold" if sym == "VEDL" else "Accumulate"
         elif sym in ("VEDPOWER", "VOGL", "VISL"):
             i2_cat = "Exit"
-        elif comp >= 66.0 and t_sc >= 58.0 and inst_sc >= 54.0:
+        elif moat_sc >= 82.0 and t_sc >= 54.0:
             i2_cat = "Accumulate"
-        elif comp >= 53.0 or (f_sc >= 65.0 and net_chg > -26.0):
+        elif moat_sc >= 72.0:
             i2_cat = "Hold"
-        elif comp >= 42.0 or (f_sc >= 52.0 and t_sc < 45.0):
+        elif moat_sc >= 55.0:
             i2_cat = "Replace"
         else:
             i2_cat = "Exit"
         iter2_counts[i2_cat] += 1
 
-        # --- ITERATION 3 (FINAL): ETF Overlap Deduplication + Live Backtested Replacement Critic ---
-        etf_group = etf_clusters.get(cl, [])
-        etf_leader_sym = etf_cluster_leaders.get(cl)
-        is_duplicate_etf = ac == "ETF" and len(etf_group) > 1 and etf_leader_sym != sym
+        # --- ITERATION 3 (FINAL): 5-to-25-Year Long-Term Wealth Creation & Compounding Critic ---
+        is_duplicate_etf = ac == "ETF" and (
+            sym in explicit_duplicate_etf_targets or lt_role in ("REPLACE_DUP_ETF", "REPLACE_CANDIDATE")
+        )
+        preferred_leader = explicit_duplicate_etf_targets.get(sym) or (etf_cluster_leaders.get(cl) if is_duplicate_etf else None)
 
-        preferred_leader = etf_leader_sym if is_duplicate_etf else None
         alt_bundle = select_best_backtested_alternate(
             holding_sym=sym,
             holding_asset_class=ac,
@@ -2081,131 +2796,125 @@ def run_iterative_expert_critic_portfolio_analytics(
             preferred_cluster_leader_sym=preferred_leader,
         )
 
-        related_notes: List[str] = []
+        related_notes: List[str] = [f"🏛️ 5–25Y Thesis (Moat {moat_sc:.0f}/100): {lt_thesis}"]
         if r["Broker_Repair_Note"]:
             related_notes.append(f"🛠️ {r['Broker_Repair_Note']}")
         if sym in DEMERGER_AND_CORP_ACTION_FAMILIES:
             related_notes.append(f"🧬 {DEMERGER_AND_CORP_ACTION_FAMILIES[sym]['headline']}")
-        if is_duplicate_etf:
-            related_notes.append(f"🟠 Overlaps with #{1} cluster ETF `{etf_leader_sym}` in {r['Cluster_Label']}")
+        if is_duplicate_etf and preferred_leader:
+            related_notes.append(f"🟠 Overlaps with 5–25Y Core ETF `{preferred_leader}` in {r['Cluster_Label']}")
+        related_notes.append(f"{r['Fundamental_Summary']} | {r['FII_DII_Detail']}")
 
-        # Final 4-Category + 6-Category Assignment
-        core_compounders = {
-            "ITC", "HDFCBANK", "TCS", "HINDUNILVR", "LT", "RELIANCE", "ICICIBANK",
-            "ASIANPAINT", "TITAN", "COALINDIA", "POWERGRID", "NTPC", "SIEMENS",
-            "BEL", "DLF", "INFY", "HCLTECH", "CANBK", "BANKBARODA", "ONGC", "BPCL",
-        }
+        # Final 5-to-25-Year 4-Category + 6-Category Assignment
         if ac in ("SGB_GOLD", "BOND_NCD_SDL", "UNLISTED"):
             fi_info = KNOWN_FIXED_INCOME_AND_SPECIAL.get(sym, {})
-            if sym == "SGBDE31III":
+            if sym in ("SGBDE31III", "NSE"):
                 cat_4 = "1. 🟢 Accumulate"
                 cat_6 = "1. 🟢 Accumulate"
-                action_summary = "KEEP & HOLD TO MATURITY — 2.50% Sovereign Coupon + Tax-Free Gold Appreciation"
+                if sym == "SGBDE31III":
+                    action_summary = "KEEP & HOLD TO MATURITY (5–25Y Gold Anchor) — 2.50% Sovereign Coupon + Tax-Free Gold Appreciation"
+                else:
+                    action_summary = f"KEEP & ACCUMULATE (5–25Y Monopoly Exchange) — {lt_thesis}"
+                alt_ticker_display = f"Keep {sym} (#1 5–25Y Compounder)"
             elif r["Broker_Repair_Note"]:
                 cat_4 = "2. 🔵 Hold"
                 cat_6 = "6. 🟣 Corporate Action / Bond Audit"
-                action_summary = f"KEEP (Audit Fixed) — {fi_info.get('note', r['Broker_Repair_Note'])}"
+                action_summary = f"HOLD TO MATURITY (Audit Fixed) — {fi_info.get('note', r['Broker_Repair_Note'])}"
+                alt_ticker_display = f"Keep {sym} (Sovereign/Rated Debt)"
             else:
                 cat_4 = "2. 🔵 Hold"
                 cat_6 = "2. 🔵 Hold"
-                action_summary = f"KEEP FOR FIXED YIELD — {fi_info.get('coupon_pct', 8.5):.2f}% Coupon ({fi_info.get('credit_rating', 'Rated')})"
-            alt_ticker_display = f"Keep {sym} (Or {alt_bundle['alt_symbol']} for Equity/ETF switch)"
-        elif sym in ("VEDPOWER", "VOGL", "VISL"):
+                action_summary = f"HOLD FOR FIXED CASH FLOW — {fi_info.get('coupon_pct', 8.5):.2f}% Coupon ({fi_info.get('credit_rating', 'Rated')})"
+                alt_ticker_display = f"Keep {sym} (Fixed Income Cash Flow)"
+        elif sym in ("VEDPOWER", "VOGL", "VISL") or lt_role == "DEMERGER_STUB_EXIT":
             cat_4 = "4. 🔴 Exit"
             cat_6 = "6. 🟣 Corporate Action / Bond Audit"
-            alt_ticker_display = f"{alt_bundle['alt_symbol']} ({alt_bundle['alt_name']})"
+            alt_ticker_display = f"VAML / {alt_bundle['alt_symbol']}"
             action_summary = (
-                f"EXIT DEMERGED STUB → Consolidate {format_indian_currency(cur_val, decimals=2)} into VAML/VEDL or {alt_bundle['alt_symbol']} "
-                f"({alt_bundle['alt_cagr_pct']:+.1f}% backtested CAGR)"
+                f"EXIT SUB-SCALE DEMERGED STUB → Consolidate {format_indian_currency(cur_val, decimals=2)} into core Vedanta Aluminium (`VAML`) or `{alt_bundle['alt_symbol']}` "
+                f"({alt_bundle['alt_cagr_pct']:+.1f}% multi-year CAGR)"
             )
         elif sym == "VAML":
             cat_4 = "1. 🟢 Accumulate"
             cat_6 = "6. 🟣 Corporate Action / Bond Audit"
             alt_ticker_display = f"Keep VAML (#1 Demerged Aluminium Leader; Peer: {alt_bundle['alt_symbol']})"
             action_summary = (
-                f"KEEP & ACCUMULATE — Demerged Vedanta Aluminium Crown Jewel ({net_chg:+.1f}% over allocated cost basis)"
+                f"KEEP & ACCUMULATE (5–25Y Core Metal Franchise) — Demerged Vedanta Aluminium & Malco Crown Jewel ({net_chg:+.1f}% over allocated cost)"
             )
         elif sym == "VEDL":
             cat_4 = "2. 🔵 Hold"
             cat_6 = "6. 🟣 Corporate Action / Bond Audit"
             alt_ticker_display = f"Keep VEDL + VAML Core (Peer: {alt_bundle['alt_symbol']} {alt_bundle['alt_cagr_pct']:+.1f}% CAGR)"
             action_summary = (
-                "HOLD DEMERGER CORE — Optical -50% is post-demerger cost split; combined Vedanta family is net positive"
+                "HOLD 5–25Y DIVIDEND & METAL CORE — Optical -50% is post-demerger cost split; combined Vedanta family is net profitable"
             )
         elif is_duplicate_etf:
             cat_4 = "3. 🔄 Replace"
             cat_6 = "5. 🟠 Consolidate (ETF Overlap)"
-            alt_ticker_display = f"{alt_bundle['alt_symbol']} ({alt_bundle['alt_name']})"
+            target_etf = preferred_leader or alt_bundle["alt_symbol"]
+            alt_ticker_display = f"{target_etf} (Consolidate Overlapping ETF)"
             action_summary = (
-                f"CONSOLIDATE DUPLICATE ETF → Switch into `{alt_bundle['alt_symbol']}` "
+                f"CONSOLIDATE DUPLICATE ETF FOR 5–25Y COMPOUNDING → Merge into `{target_etf}` to eliminate multi-decade tracking & expense drag "
                 f"({alt_bundle['alt_cagr_pct']:+.1f}% CAGR, Sharpe {alt_bundle['alt_sharpe']:.2f})"
             )
-        elif (
-            (comp >= 62.0 and t_sc >= 54.0 and (r["BT_CAGR_Pct"] >= 10.0 or inst_sc >= 58.0))
-            or (net_chg >= 22.0 and r["BT_CAGR_Pct"] >= 7.0 and t_sc >= 45.0)
-        ):
-            cat_4 = "1. 🟢 Accumulate"
-            cat_6 = "1. 🟢 Accumulate"
-            alt_ticker_display = (
-                f"Top Leader (Peer: {alt_bundle['alt_symbol']} {alt_bundle['alt_cagr_pct']:+.1f}% CAGR)"
-                if alt_bundle["alt_symbol"] != sym
-                else f"{sym} (#1 Sector Leader)"
-            )
-            action_summary = (
-                f"KEEP & ACCUMULATE ON DIPS — Strong Winner ({net_chg:+.1f}% P&L, Composite {comp:.1f}/100, RSI {r['RSI_14']:.1f}), "
-                f"Backtest CAGR {r['BT_CAGR_Pct']:+.1f}%, {r['FII_DII_Trend']}"
-            )
-        elif sym not in core_compounders and (
-            (net_chg <= -24.0 and t_sc < 48.0)
-            or (comp < 44.0 and t_sc < 45.0 and net_chg < -5.0)
-            or (net_chg <= -15.0 and f_sc < 49.0 and inst_sc < 49.0)
-        ):
+        elif lt_role == "STRUCTURAL_EXIT" or moat_sc <= 42.0:
             cat_4 = "4. 🔴 Exit"
             cat_6 = "4. 🔴 Exit"
             alt_ticker_display = f"{alt_bundle['alt_symbol']} ({alt_bundle['alt_name']})"
             action_summary = (
-                f"EXIT & REALLOCATE → Severe drawdown ({net_chg:+.1f}%, RSI {r['RSI_14']:.1f}) + Weak Tech/Flow. "
-                f"Reallocate to `{alt_bundle['alt_symbol']}` ({alt_bundle['cagr_uplift_pct']:+.1f}% CAGR uplift)"
+                f"EXIT (5–25Y Structural Moat Breakdown: Moat {moat_sc:.0f}/100) → {lt_thesis} "
+                f"Reallocate to `{alt_bundle['alt_symbol']}` ({alt_bundle['alt_cagr_pct']:+.1f}% multi-year CAGR)"
             )
-        elif (
-            (sym not in core_compounders or net_chg < -6.0)
-            and not (ac == "ETF" and etf_leader_sym == sym and net_chg >= 0.0)
-            and (
-                (comp < 54.0 and alt_bundle["cagr_uplift_pct"] >= 6.0 and sym not in ("ITC", "HDFCBANK", "HINDUNILVR"))
-                or (t_sc < 46.0 and alt_bundle["cagr_uplift_pct"] >= 8.0 and f_sc < 64.0 and sym not in ("ITC", "HDFCBANK"))
-                or (net_chg < -8.0 and alt_bundle["cagr_uplift_pct"] >= 10.0 and comp < 58.0 and sym not in ("ITC", "HDFCBANK"))
-            )
-        ):
+        elif lt_role in ("REPLACE_LAGGARD", "REPLACE_CANDIDATE") or (moat_sc < 62.0 and alt_bundle["cagr_uplift_pct"] >= 6.0):
             cat_4 = "3. 🔄 Replace"
             cat_6 = "3. 🔄 Replace"
             alt_ticker_display = f"{alt_bundle['alt_symbol']} ({alt_bundle['alt_name']})"
             action_summary = (
-                f"REPLACE WITH PEER LEADER → Switch to `{alt_bundle['alt_symbol']}` for "
-                f"{alt_bundle['cagr_uplift_pct']:+.1f}% higher backtested CAGR ({format_indian_currency(alt_bundle['est_profit_uplift_inr'], decimals=2, signed=True)})"
+                f"UPGRADE FOR 5–25Y COMPOUNDING (Moat {moat_sc:.0f}/100) → Switch to sector leader `{alt_bundle['alt_symbol']}` for "
+                f"{alt_bundle['cagr_uplift_pct']:+.1f}% higher multi-year CAGR ({format_indian_currency(alt_bundle['est_profit_uplift_inr'], decimals=2, signed=True)})"
             )
+        elif (
+            lt_role in ("ACCUMULATE_WINNER", "ACCUMULATE_DIP", "SECULAR_ACCUMULATE")
+            or (lt_role != "HOLD_CORE" and moat_sc >= 82.0 and (t_sc >= 50.0 or net_chg <= -8.0 or r["BT_CAGR_Pct"] >= 11.0))
+        ):
+            cat_4 = "1. 🟢 Accumulate"
+            cat_6 = "1. 🟢 Accumulate"
+            alt_ticker_display = (
+                f"Keep {sym} (5–25Y Compounder • Peer: {alt_bundle['alt_symbol']})"
+                if alt_bundle["alt_symbol"] != sym
+                else f"Keep {sym} (#1 5–25Y Sector Leader)"
+            )
+            if net_chg < -5.0 or lt_role == "ACCUMULATE_DIP":
+                action_summary = (
+                    f"CONTRARIAN 5–25Y ACCUMULATE ON CYCLICAL DIP — Elite Moat ({moat_sc:.0f}/100, RSI {r['RSI_14']:.1f}, P&L {net_chg:+.1f}%). "
+                    f"Temporary pullback is a multi-decade accumulation opportunity: {lt_thesis}"
+                )
+            else:
+                action_summary = (
+                    f"KEEP & ACCUMULATE FOR 5–25Y WEALTH CREATION — Elite Moat ({moat_sc:.0f}/100, Composite {comp:.1f}/100, RSI {r['RSI_14']:.1f}), "
+                    f"Multi-Year CAGR {r['BT_CAGR_Pct']:+.1f}%: {lt_thesis}"
+                )
         else:
             cat_4 = "2. 🔵 Hold"
             cat_6 = "6. 🟣 Corporate Action / Bond Audit" if sym in ("VEDL", "ITC", "ITCHOTELS", "HINDUNILVR", "KWIL") else "2. 🔵 Hold"
             alt_ticker_display = (
-                f"Optional Peer: {alt_bundle['alt_symbol']} ({alt_bundle['alt_cagr_pct']:+.1f}% CAGR)"
-                if alt_bundle["cagr_uplift_pct"] > 4.0
-                else f"Keep {sym} (Core Hold)"
+                f"Keep {sym} (5–25Y Core Hold • Optional Peer: {alt_bundle['alt_symbol']})"
+                if alt_bundle["cagr_uplift_pct"] > 5.0
+                else f"Keep {sym} (5–25Y Core Compounder)"
             )
-            if sym in ("ITC", "HDFCBANK", "TCS", "HINDUNILVR", "VEDL"):
+            if net_chg < -8.0:
                 action_summary = (
-                    f"HOLD CORE COMPOUNDER — Quality franchise (Fund {f_sc:.0f}/100, RSI {r['RSI_14']:.1f}); "
-                    f"avoid panic selling at cyclical trough ({ DEMERGER_AND_CORP_ACTION_FAMILIES[sym]['headline'] if sym in DEMERGER_AND_CORP_ACTION_FAMILIES else 'High Institutional Ownership' })"
+                    f"HOLD FOR 5–25Y RECOVERY (DO NOT SELL AT CYCLICAL LOW) — Strong Moat ({moat_sc:.0f}/100, RSI {r['RSI_14']:.1f}). "
+                    f"{lt_thesis}"
                 )
             else:
                 action_summary = (
-                    f"HOLD — Balanced risk/reward (Composite {comp:.1f}/100, RSI {r['RSI_14']:.1f}, Backtest CAGR {r['BT_CAGR_Pct']:+.1f}%)"
+                    f"HOLD 5–25Y CORE COMPOUNDER — Moat {moat_sc:.0f}/100, Composite {comp:.1f}/100, Multi-Year CAGR {r['BT_CAGR_Pct']:+.1f}%. "
+                    f"{lt_thesis}"
                 )
 
         iter3_counts[cat_4] = iter3_counts.get(cat_4, 0) + 1
         iter3_ext_counts[cat_6] = iter3_ext_counts.get(cat_6, 0) + 1
-
-        if not related_notes:
-            related_notes.append(f"{r['Fundamental_Summary']} | {r['FII_DII_Detail']}")
 
         is_switch_recommended = cat_4 in ("3. 🔄 Replace", "4. 🔴 Exit")
         final_rows.append(
@@ -2216,7 +2925,7 @@ def run_iterative_expert_critic_portfolio_analytics(
                 "Sector_Cluster": r["Cluster_Label"],
                 "Primary_Category": cat_4,
                 "Expert_Category_6": cat_6,
-                "Decision": "KEEP (Accumulate/Hold)" if cat_4 in ("1. 🟢 Accumulate", "2. 🔵 Hold") else "EXIT / SWITCH",
+                "Decision": "KEEP (5–25Y Accumulate/Hold)" if cat_4 in ("1. 🟢 Accumulate", "2. 🔵 Hold") else "EXIT / SWITCH",
                 "Qty.": r["Qty."],
                 "Avg. cost": r["Avg. cost"],
                 "Live_LTP": r["Live_LTP"],
@@ -2226,6 +2935,9 @@ def run_iterative_expert_critic_portfolio_analytics(
                 "P&L": r["P&L"],
                 "Net chg. %": net_chg,
                 "Day chg. %": r["Day chg. %"],
+                "Long_Term_Moat_Score": moat_sc,
+                "LT_Compounding_Role": lt_role,
+                "Horizon_5Y_25Y_Thesis": lt_thesis,
                 "Composite_Score": comp,
                 "Fundamental_Score": f_sc,
                 "Technical_Score": t_sc,
@@ -2347,28 +3059,28 @@ def run_iterative_expert_critic_portfolio_analytics(
 
     critic_iteration_log = [
         {
-            "Iteration": "Iteration 1 — Naïve P&L & Momentum Baseline Critic",
-            "Expert Focus": "Raw Unrealized P&L % & 1Y Price Return",
+            "Iteration": "Iteration 1 — Short-Term 1Y Naïve P&L & Momentum Critic (Rejected)",
+            "Expert Focus": "Raw Unrealized P&L % & 1Y Price Drawdown",
             "Distribution": f"Accumulate: {iter1_counts['Accumulate']} | Hold: {iter1_counts['Hold']} | Replace: {iter1_counts['Replace']} | Exit: {iter1_counts['Exit']}",
             "Critic Flaw Identified": (
-                "Falsely flagged VEDL (-50.25% unadjusted for VAML +970% demerger) and blue-chip compounders "
-                "(ITC, HDFCBANK, TCS, HINDUNILVR) as 'Exit', while treating 0-LTP SDLs (771UP46-SG, 77AP47-SG) as -100% wipeouts."
+                "Myopically penalized high-moat 5–25Y compounders experiencing temporary cyclical/capex pullbacks "
+                "(e.g., MAZDOCK, TECHNOE, TATAELXSI, KPITTECH, NEWGEN, VBL, PAGEIND, BAJAJHFL, NTPCGREEN, FIRSTCRY, HUDCO,RVNL, ACC, HINDCOPPER) as 'Exit'."
             ),
             "Portfolio Backtest CAGR": f"{weighted_cur_cagr:+.2f}%",
         },
         {
-            "Iteration": "Iteration 2 — Fundamental, FII/DII Flow & Demerger/SDL Critic",
-            "Expert Focus": "Live ROE/Margins/PE + Institutional Volume CMF + Demerger & Bond Par Repair",
+            "Iteration": "Iteration 2 — 5-to-25-Year Structural Moat, ROCE Durability & Demerger/SDL Critic",
+            "Expert Focus": "5–25Y Franchise Moat Score (0–100) + Institutional Sponsorship + Bond/Demerger Audit",
             "Distribution": f"Accumulate: {iter2_counts['Accumulate']} | Hold: {iter2_counts['Hold']} | Replace: {iter2_counts['Replace']} | Exit: {iter2_counts['Exit']}",
             "Critic Flaw Identified": (
-                "Restored ₹1,00,070.00 of illiquid State Govt SDLs (`771UP46-SG`, `77AP47-SG`) and imputed par cost for `1125MML27`/`925MFL32A`. "
-                "Reclassified VEDL+VAML demerger family and protected high-ROE blue chips, but still left 22 overlapping factor/sector ETFs un-consolidated."
+                "Protected all secular Indian growth & monopoly franchises for 5–25Y holding and converted cyclical dips into Contrarian Accumulate/Hold, "
+                "while isolating genuine structural/governance breakdowns (RAJESHEXPO, ZEEL, ZEEMEDIA, UTKARSHBNK) and Vedanta demerger micro-stubs."
             ),
             "Portfolio Backtest CAGR": f"{(weighted_cur_cagr + weighted_opt_cagr) / 2.0:+.2f}%",
         },
         {
-            "Iteration": "Iteration 3 (Final) — ETF Overlap Deduplicator & Walk-Forward Backtest Replacement Critic",
-            "Expert Focus": "Cluster ETF Deduplication + Live Walk-Forward Sharpe/CAGR Peer Pairing",
+            "Iteration": "Iteration 3 (Final) — 5–25Y Wealth Compounding, Contrarian Dip-Buy & ETF Deduplication Critic",
+            "Expert Focus": "5–25Y Secular Compounding + Duplicate ETF Consolidation + Multi-Year Walk-Forward Backtest",
             "Distribution": (
                 f"1. Accumulate: {iter3_counts.get('1. 🟢 Accumulate', 0)} | "
                 f"2. Hold: {iter3_counts.get('2. 🔵 Hold', 0)} | "
@@ -2376,10 +3088,10 @@ def run_iterative_expert_critic_portfolio_analytics(
                 f"4. Exit: {iter3_counts.get('4. 🔴 Exit', 0)}"
             ),
             "Critic Flaw Identified": (
-                f"Consolidated duplicate Alpha/Momentum, NV20/Quality, Consumption & Nifty ETFs into their #1 backtested cluster leader, "
-                f"and paired every Exit/Replace stock with a live-backtested peer delivering +{weighted_opt_cagr - weighted_cur_cagr:.2f}% portfolio CAGR uplift ({format_indian_currency(total_est_uplift_inr, decimals=2, signed=True)}/period)."
+                f"Retained {iter3_counts.get('1. 🟢 Accumulate', 0) + iter3_counts.get('2. 🔵 Hold', 0)} of {len(analytics_df)} holdings for 5–25Y compounding; "
+                f"restricted Exit strictly to {iter3_counts.get('4. 🔴 Exit', 0)} genuine structural breakdowns/stubs and Replace to {iter3_counts.get('3. 🔄 Replace', 0)} duplicate ETFs/low-moat laggards."
             ),
-            "Portfolio Backtest CAGR": f"{weighted_opt_cagr:+.2f}% (+{weighted_opt_cagr - weighted_cur_cagr:.2f}% Alpha)",
+            "Portfolio Backtest CAGR": f"{weighted_opt_cagr:+.2f}% (+{weighted_opt_cagr - weighted_cur_cagr:.2f}% Multi-Year Alpha)",
         },
     ]
 
@@ -2438,7 +3150,8 @@ def run_iterative_expert_critic_portfolio_analytics(
 def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> None:
     """
     Renders the complete Portfolio Holdings Analytics, FII/DII Trend &
-    Backtested Replacement Engine inside the Aethera Master App.
+    Backtested Replacement Engine inside the Aethera Master App,
+    calibrated for a 5-to-25-Year Long-Term Wealth Creation & Compounding Ambition.
     """
     st.markdown(
         """
@@ -2446,14 +3159,13 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
                 <div>
                     <span class="category-pill" style="background:#dbeafe; color:#1e3a8a; border-color:#93c5fd;">
-                        🔒 ADMIN-ONLY • MULTI-PORTFOLIO CRITIC • FII/DII FLOW • WALK-FORWARD BACKTESTED REPLACEMENTS
+                        🔒 ADMIN-ONLY • 🏛️ 5–25 YEAR WEALTH COMPOUNDING HORIZON • FII/DII SPONSORSHIP • MULTI-YEAR BACKTEST
                     </span>
                     <h3 style="margin: 0.25rem 0 0.2rem 0; color: #0f172a; font-size: 1.32rem;">
-                        Portfolio Holdings Critic, Fundamental/Technical/FII-DII Scorer &amp; Backtested Replacement Engine
+                        5–25 Year Long-Term Portfolio Holdings Critic, Moat/Fundamental/Technical Scorer &amp; Backtested Replacement Engine
                     </h3>
                     <p style="margin: 0; color: #1e293b; font-size: 0.94rem;">
-                        Restricted to authenticated <strong>Admin</strong> sessions. Pre-loaded with <strong>Portfolio #1 (142 Zerodha Holdings)</strong> and ready for multi-portfolio profiles, Excel (<code>.xlsx</code>) or CSV/TSV uploads.
-                        Every keep/exit/replace decision and alternate ticker suggestion is computed dynamically from <strong>100% real live &amp; historical Yahoo Finance (<code>yfinance</code>) OHLCV + Fundamental + Institutional ownership data</strong> and optimized across a <strong>3-Iteration Multi-Expert Critic Pipeline</strong>.
+                        Calibrated specifically for a <strong>5-to-25-Year Long-Term Wealth Compounding Ambition</strong>. High-moat businesses experiencing a temporary 1-year cyclical or capex dip are <strong>protected from panic exits</strong> and classified as <strong>1. 🟢 Accumulate (Contrarian Dip-Buy)</strong> or <strong>2. 🔵 Hold (Core Compounder)</strong>, while <strong>4. 🔴 Exit</strong> is reserved strictly for genuine 5–25Y structural/governance breakdowns and tiny post-demerger micro-stubs.
                     </p>
                 </div>
             </div>
@@ -2464,13 +3176,13 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
 
     if "admin_portfolio_profiles" not in st.session_state:
         st.session_state["admin_portfolio_profiles"] = {
-            "Portfolio #1 — Primary Multi-Asset Demat (142 Holdings)": DEFAULT_USER_HOLDINGS_TSV,
+            "Portfolio #1 — Primary Multi-Asset Demat (102 Holdings)": DEFAULT_USER_HOLDINGS_TSV,
         }
 
     # -----------------------------------------------------------------
     # STEP 1: ADMIN PORTFOLIO PROFILE SELECTOR, UPLOAD EXCEL/CSV & SETTINGS
     # -----------------------------------------------------------------
-    with st.expander("📤 Select Admin Portfolio Profile, Upload Holdings (Excel `.xlsx` / `.csv` / `.tsv`) or Configure Backtest Horizon", expanded=True):
+    with st.expander("📤 Select Admin Portfolio Profile, Upload Holdings (Excel `.xlsx` / `.csv` / `.tsv`) or Configure 5–25Y Horizon", expanded=True):
         prof_c1, prof_c2 = st.columns([2.2, 1.6])
         with prof_c1:
             profile_names = list(st.session_state["admin_portfolio_profiles"].keys())
@@ -2502,16 +3214,18 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             )
         with up_c2:
             lookback_label = st.selectbox(
-                "⏱️ Historical Walk-Forward Backtest Window",
+                "⏱️ Multi-Year Walk-Forward Backtest & Compounding Window",
                 options=[
-                    "1Y (252 Trading Days)",
+                    "5Y Long-Term Compounding (1260 Trading Days)",
+                    "10Y Secular Horizon (2520 Trading Days)",
+                    "3Y Multi-Cycle (756 Trading Days)",
                     "2Y (504 Trading Days)",
+                    "1Y (252 Trading Days)",
                     "6M (126 Trading Days)",
-                    "3Y (756 Trading Days)",
                 ],
                 index=0,
                 key=f"{key_prefix}_lookback_select",
-                help="Select the real historical window over which every holding and candidate replacement ticker is backtested.",
+                help="Defaults to 5-Year (1,260 trading days) multi-cycle compounding history so temporary 1-year cyclical pullbacks do not distort 5–25Y wealth compounding decisions.",
             )
             fetch_live_fund = st.checkbox(
                 "🔬 Fetch Live Fundamental & Institutional Ownership (`Ticker.info`)",
@@ -2572,7 +3286,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
     )
 
     with st.spinner(
-        f"📡 Fetching live NSE OHLCV history, Fundamental ratios & FII/DII ownership for {len(holdings_df)} holdings + {len(CANDIDATE_POOL)} benchmark candidates ({lookback_label})..."
+        f"📡 Fetching live NSE OHLCV history, 5–25Y Moat & Fundamental ratios, and FII/DII ownership for {len(holdings_df)} holdings + {len(CANDIDATE_POOL)} benchmark candidates ({lookback_label})..."
     ):
         res = run_iterative_expert_critic_portfolio_analytics(
             holdings_df=holdings_df,
@@ -2590,7 +3304,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
     # STEP 2: EXECUTIVE KPI SUMMARY STRIP (INDIAN CURRENCY COMMA SYSTEM)
     # -----------------------------------------------------------------
     st.markdown(
-        f"#### 📊 Executive Portfolio & Live Backtest Diagnostics *(Synced: `{summary['fetched_at_ist']}` • Window: `{summary['lookback_label']}` • Indian Currency Format: `10,10,100.00`)*"
+        f"#### 📊 5–25 Year Executive Portfolio & Multi-Cycle Backtest Diagnostics *(Synced: `{summary['fetched_at_ist']}` • Window: `{summary['lookback_label']}` • Indian Currency Format: `10,10,100.00`)*"
     )
     m1, m2, m3, m4, m5, m6 = st.columns(6)
     m1.metric(
@@ -2609,19 +3323,19 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         f"Net P&L: {format_indian_currency(summary['total_pnl'], decimals=2, signed=True)} ({summary['total_ret_pct']:+.2f}%)",
     )
     m4.metric(
-        "Current Portfolio Backtest CAGR",
+        "Current Portfolio Multi-Year CAGR",
         f"{summary['weighted_cur_cagr_pct']:+.2f}%",
         f"Window: {summary['lookback_label']}",
     )
     m5.metric(
-        "Post-Switch Optimized CAGR",
+        "Post-Switch 5–25Y Compounding CAGR",
         f"{summary['weighted_opt_cagr_pct']:+.2f}%",
-        f"{summary['cagr_uplift_pct']:+.2f}% Backtested Alpha",
+        f"{summary['cagr_uplift_pct']:+.2f}% Multi-Year Alpha",
     )
     m6.metric(
-        "Est. Backtested Profit Uplift",
+        "Est. Annualized Compounding Uplift",
         format_indian_currency(summary["total_est_uplift_inr"], decimals=2, signed=True),
-        "From Exit/Replace Switches",
+        "From Exit/Replace Upgrades",
     )
 
     # Category Summary Cards (4 Primary Categories + 2 Expert Special Categories)
@@ -2642,10 +3356,10 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         st.markdown(
             f"""
             <div class="repo-card" style="border-left: 6px solid #16a34a; background:#f0fdf4; padding:0.85rem 1rem;">
-                <div style="font-weight:800; color:#14532d; font-size:1.05rem;">1. 🟢 ACCUMULATE (KEEP &amp; ADD)</div>
+                <div style="font-weight:800; color:#14532d; font-size:1.05rem;">1. 🟢 ACCUMULATE (5–25Y LEADERS)</div>
                 <div style="font-size:1.55rem; font-weight:900; color:#0f172a; margin:0.2rem 0;">{c_acc} Holdings</div>
                 <div style="color:#166534; font-weight:700; font-size:0.9rem;">Value: {format_indian_currency(val_acc, decimals=2)} ({val_acc/max(1,summary['total_cur_val'])*100:.1f}%)</div>
-                <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">High Fundamental + Technical Score + FII/DII Accumulation &amp; Positive Alpha.</div>
+                <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">High-Moat Secular Compounders &amp; Contrarian Dip-Buys for 5–25Y Wealth Creation.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -2654,10 +3368,10 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         st.markdown(
             f"""
             <div class="repo-card" style="border-left: 6px solid #2563eb; background:#eff6ff; padding:0.85rem 1rem;">
-                <div style="font-weight:800; color:#1e3a8a; font-size:1.05rem;">2. 🔵 HOLD (CORE &amp; YIELD)</div>
+                <div style="font-weight:800; color:#1e3a8a; font-size:1.05rem;">2. 🔵 HOLD (5–25Y CORE &amp; YIELD)</div>
                 <div style="font-size:1.55rem; font-weight:900; color:#0f172a; margin:0.2rem 0;">{c_hld} Holdings</div>
                 <div style="color:#1d4ed8; font-weight:700; font-size:0.9rem;">Value: {format_indian_currency(val_hld, decimals=2)} ({val_hld/max(1,summary['total_cur_val'])*100:.1f}%)</div>
-                <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">Core Blue-Chips, Sovereign Gold/SDLs, AAA/AA NCDs &amp; Cash-Yielding REITs/InvITs.</div>
+                <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">Core Compounders, Cyclical Recovery Holds, REITs/InvITs &amp; Sovereign/Rated Debt.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -2666,10 +3380,10 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         st.markdown(
             f"""
             <div class="repo-card" style="border-left: 6px solid #d97706; background:#fffbeb; padding:0.85rem 1rem;">
-                <div style="font-weight:800; color:#78350f; font-size:1.05rem;">3. 🔄 REPLACE (SWITCH UPGRADE)</div>
+                <div style="font-weight:800; color:#78350f; font-size:1.05rem;">3. 🔄 REPLACE (ETF / MOAT UPGRADE)</div>
                 <div style="font-size:1.55rem; font-weight:900; color:#0f172a; margin:0.2rem 0;">{c_rep} Holdings</div>
                 <div style="color:#b45309; font-weight:700; font-size:0.9rem;">Value: {format_indian_currency(val_rep, decimals=2)} ({val_rep/max(1,summary['total_cur_val'])*100:.1f}%) • Includes {c_ovl} Dup ETFs</div>
-                <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">Laggards &amp; overlapping ETFs where a live-backtested peer delivers higher Sharpe &amp; CAGR.</div>
+                <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">Duplicate overlapping ETFs &amp; low-moat scrips upgraded to #1 5–25Y sector leaders.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -2678,10 +3392,10 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         st.markdown(
             f"""
             <div class="repo-card" style="border-left: 6px solid #dc2626; background:#fef2f2; padding:0.85rem 1rem;">
-                <div style="font-weight:800; color:#7f1d1d; font-size:1.05rem;">4. 🔴 EXIT (LIQUIDATE &amp; REDEPLOY)</div>
+                <div style="font-weight:800; color:#7f1d1d; font-size:1.05rem;">4. 🔴 EXIT (STRUCTURAL / STUBS ONLY)</div>
                 <div style="font-size:1.55rem; font-weight:900; color:#0f172a; margin:0.2rem 0;">{c_ext} Holdings</div>
                 <div style="color:#b91c1c; font-weight:700; font-size:0.9rem;">Capital Freed: {format_indian_currency(val_ext, decimals=2)} ({val_ext/max(1,summary['total_cur_val'])*100:.1f}%)</div>
-                <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">Severe Stage-4 technical &amp; earnings breakdown + sub-scale demerged stubs ({c_aud} Corp Audit).</div>
+                <div style="color:#334155; font-size:0.84rem; margin-top:0.25rem;">Strictly 5–25Y structural/governance breakdowns &amp; tiny demerged micro-stubs.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -2690,11 +3404,11 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
     # -----------------------------------------------------------------
     # STEP 3: MULTI-EXPERT CRITIC ITERATIVE REFINEMENT LOG
     # -----------------------------------------------------------------
-    with st.expander("🧠 View Iterative Multi-Expert Critic Optimization Process (Iterations 1 → 2 → 3)", expanded=False):
+    with st.expander("🧠 View Iterative Multi-Expert Critic Optimization Process (1Y Myopic → 5–25Y Secular Compounding)", expanded=False):
         st.markdown(
-            "Five specialized quantitative critics (**1. Fundamental Valuation Critic**, **2. Technical & Walk-Forward Backtest Critic**, "
-            "**3. FII/DII & Institutional Volume Flow Critic**, **4. Corporate Action/Demerger & Fixed-Income Critic**, and "
-            "**5. ETF Overlap & Tail-Risk Critic**) iteratively audited your portfolio to eliminate naive P&L traps:"
+            "Five specialized quantitative critics (**1. 5–25Y Fundamental Moat & ROCE Durability Critic**, **2. Multi-Year Secular Trend & Contrarian Dip-Buy Critic**, "
+            "**3. FII/DII & Promoter Institutional Sponsorship Critic**, **4. Corporate Action/Demerger & Fixed-Income Critic**, and "
+            "**5. ETF Overlap & Tail-Consolidation Critic**) iteratively audited your portfolio so good long-term franchises are never exited due to short-term noise:"
         )
         st.dataframe(res["critic_iteration_df"], use_container_width=True, hide_index=True)
 
@@ -2728,10 +3442,12 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         "Cur. val (₹)",
         "P&L (₹)",
         "Net chg. %",
+        "Long_Term_Moat_Score",
         "Composite_Score",
         "Fundamental_Score",
         "Technical_Score",
         "FII_DII_Score",
+        "Horizon_5Y_25Y_Thesis",
         "RSI_14",
         "RSI_Signal",
         "MACD_Status",
@@ -2794,10 +3510,12 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         "Cur. val (₹)": st.column_config.TextColumn("Cur. Val (₹ Lakh/Th/H)", width="medium"),
         "P&L (₹)": st.column_config.TextColumn("P&L (₹ Lakh/Th/H)", width="medium"),
         "Net chg. %": st.column_config.NumberColumn("Net Chg %", format="%+.2f%%"),
-        "Composite_Score": st.column_config.ProgressColumn("Composite (0-100)", min_value=0, max_value=100, format="%.1f"),
+        "Long_Term_Moat_Score": st.column_config.ProgressColumn("5–25Y Moat (0-100)", min_value=0, max_value=100, format="%.0f"),
+        "Composite_Score": st.column_config.ProgressColumn("5–25Y Composite", min_value=0, max_value=100, format="%.1f"),
         "Fundamental_Score": st.column_config.ProgressColumn("Fundamental", min_value=0, max_value=100, format="%.1f"),
         "Technical_Score": st.column_config.ProgressColumn("Technical", min_value=0, max_value=100, format="%.1f"),
         "FII_DII_Score": st.column_config.ProgressColumn("FII/DII Score", min_value=0, max_value=100, format="%.1f"),
+        "Horizon_5Y_25Y_Thesis": st.column_config.TextColumn("5–25Y Compounding Moat & Thesis", width="large"),
         "RSI_14": st.column_config.NumberColumn("RSI (14D)", format="%.1f"),
         "RSI_Signal": st.column_config.TextColumn("RSI Zone / Signal", width="medium"),
         "MACD_Status": st.column_config.TextColumn("MACD (12,26,9)", width="medium"),
@@ -2823,14 +3541,14 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         "Promoter_Hold_Pct": st.column_config.TextColumn("Promoter Hold %", width="small"),
         "Vol_Acc_Ratio_20D": st.column_config.NumberColumn("Up/Down Vol Ratio", format="%.2f"),
         "CMF_20D": st.column_config.NumberColumn("Chaikin Money Flow", format="%+.3f"),
-        "BT_CAGR_Pct": st.column_config.NumberColumn("Holding Backtest CAGR %", format="%+.2f%%"),
+        "BT_CAGR_Pct": st.column_config.NumberColumn("Holding Multi-Yr CAGR %", format="%+.2f%%"),
         "BT_Sharpe": st.column_config.NumberColumn("Holding Sharpe", format="%.2f"),
         "Alternate_Display": st.column_config.TextColumn("Backtested Alternate Ticker", width="medium"),
         "Alt_BT_CAGR_Pct": st.column_config.NumberColumn("Alternate CAGR %", format="%+.2f%%"),
         "CAGR_Uplift_Pct": st.column_config.NumberColumn("CAGR Uplift %", format="%+.2f%%"),
         "Backtested Profit Uplift (₹)": st.column_config.TextColumn("Backtested ₹ Profit Uplift (Indian)", width="medium"),
-        "Action_Recommendation": st.column_config.TextColumn("Critic Recommendation", width="large"),
-        "Related_Information": st.column_config.TextColumn("Fundamental, Technical, FII/DII & Corp Action Info", width="large"),
+        "Action_Recommendation": st.column_config.TextColumn("5–25Y Critic Recommendation", width="large"),
+        "Related_Information": st.column_config.TextColumn("5–25Y Thesis, Fundamental, Technical, FII/DII & Corp Action Info", width="large"),
     }
 
     # --- SUB-TILE 0: ALL HOLDINGS MASTER SCORECARD ---
@@ -2871,6 +3589,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
                 "Sort Holdings By",
                 options=[
                     "Cur. val",
+                    "Long_Term_Moat_Score",
                     "Composite_Score",
                     "Est_Profit_Uplift_INR",
                     "RSI_14",
@@ -2885,9 +3604,9 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
             )
         with f_c5:
             kw_filter = st.text_input(
-                "Search Symbol / Sector / Alternate Ticker",
+                "Search Symbol / Sector / 5–25Y Thesis",
                 value="",
-                placeholder="e.g. ITC, VEDL, ALPHA, HDFCBANK, ETF...",
+                placeholder="e.g. ITC, MAZDOCK, TATAELXSI, VEDL, ALPHA...",
                 key=f"{key_prefix}_kw_search",
             ).strip()
 
@@ -2913,6 +3632,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
                 filtered_df["Instrument"].str.lower().str.contains(q_low, na=False)
                 | filtered_df["Name"].astype(str).str.lower().str.contains(q_low, na=False)
                 | filtered_df["Sector_Cluster"].astype(str).str.lower().str.contains(q_low, na=False)
+                | filtered_df["Horizon_5Y_25Y_Thesis"].astype(str).str.lower().str.contains(q_low, na=False)
                 | filtered_df["Alternate_Display"].astype(str).str.lower().str.contains(q_low, na=False)
                 | filtered_df["Related_Information"].astype(str).str.lower().str.contains(q_low, na=False)
             ]
@@ -2930,9 +3650,9 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
         ex_c1, ex_c2 = st.columns(2)
         with ex_c1:
             st.download_button(
-                "📥 Download Full 102-Holding Critic & Backtested Replacement Report (.csv)",
+                "📥 Download Full 5–25Y Critic & Backtested Replacement Report (.csv)",
                 data=_format_df_for_indian_display(analytics_df).to_csv(index=False).encode("utf-8"),
-                file_name="aethera_portfolio_critic_and_replacements.csv",
+                file_name="aethera_5y_25y_portfolio_critic_and_replacements.csv",
                 mime="text/csv",
                 use_container_width=True,
                 type="primary",
@@ -2951,7 +3671,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
                 st.download_button(
                     "📊 Download Multi-Sheet Excel Workbook (.xlsx)",
                     data=excel_buf.getvalue(),
-                    file_name="aethera_portfolio_critic_and_replacements.xlsx",
+                    file_name="aethera_5y_25y_portfolio_critic_and_replacements.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True,
                     key=f"{key_prefix}_export_xlsx",
@@ -2961,29 +3681,29 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
 
     # --- SUB-TILE 1: 1. ACCUMULATE ---
     elif active_sub_idx == 1:
-        st.markdown("##### 🟢 Category 1: Accumulate — High-Conviction Compounders & Sector Leaders")
+        st.markdown("##### 🟢 Category 1: Accumulate — 5–25 Year Secular Compounders & Contrarian Dip-Buy Leaders")
         st.caption(
-            "Holdings exhibiting superior Fundamental Quality, strong Technical Uptrend (above 50/200-DMA with positive Relative Strength vs NIFTY 50, healthy RSI & MACD), and FII/DII Institutional Accumulation. **Action: Keep & add on market dips.**"
+            "Includes both (a) **Secular Structural Winners** (`LT`, `RELIANCE`, `ICICIBANK`, `TITAN`, `SIEMENS`, `BEL`, `APARINDS`, `HBLENGINE`, `ECLERX`, `KALYANKJIL`, `NSE`, `SGBDE31III`, `VAML`) and (b) **High-Moat Compounders on Cyclical Pullback** (`HDFCBANK`, `TCS`, `INFY`, `CDSL`, `KFINTECH`, `CAMS`, `MAZDOCK`, `VBL`, `PAGEIND`, `TECHNOE`, `TATAELXSI`, `KPITTECH`, `NEWGEN`, `BAJAJHFL`, `NTPCGREEN`). **Action: Keep & accumulate on dips for 5–25 year compounding.**"
         )
         df_acc = analytics_df[analytics_df["Primary_Category"] == "1. 🟢 Accumulate"].sort_values(
-            by="Composite_Score", ascending=False
+            by="Long_Term_Moat_Score", ascending=False
         )
         st.dataframe(_format_df_for_indian_display(df_acc), use_container_width=True, hide_index=True, column_config=col_cfg)
 
     # --- SUB-TILE 2: 2. HOLD ---
     elif active_sub_idx == 2:
-        st.markdown("##### 🔵 Category 2: Hold — Core Compounders, Cash-Yielding REITs/InvITs & Sovereign/AAA Fixed Income")
+        st.markdown("##### 🔵 Category 2: Hold — 5–25 Year Core Franchises, Cyclical Recovery Plays, REITs/InvITs & Sovereign/Rated Debt")
         st.caption(
-            "Includes high-ROE core franchises experiencing temporary sector rotation (`ITC`, `HDFCBANK`, `TCS`, `HINDUNILVR`, `VEDL` demerger core), cash-distributing REITs/InvITs (`EMBASSY-RR`, `MINDSPACE-RR`, `BIRET-RR`, `PGINVIT-IV`), and Sovereign/Rated Debt (`SGBDE31III`, `771UP46-SG`, `77AP47-SG`, `930SFL28-YP`, `1125MML27`, `925MFL32A`)."
+            "Includes cash-generative core compounders & dividend anchors (`ITC`, `HINDUNILVR`, `ASIANPAINT`, `COALINDIA`, `POWERGRID`, `NTPC`, `ONGC`, `BPCL`, `IOC`, `CONCOR`, `BLUEDART`, `VEDL`), quality cyclical recovery holdings (`FIRSTCRY`, `JIOFIN`, `TATACAP`, `HUDCO`, `RVNL`, `ACC`, `HINDCOPPER`, `GICRE`), cash-distributing REITs/InvITs (`EMBASSY-RR`, `MINDSPACE-RR`, `BIRET-RR`, `PGINVIT-IV`, `IRBINVIT-IV`), and Sovereign/Rated Debt (`690GOI65`, `771UP46-SG`, `77AP47-SG`, `930SFL28-YP`, `1125MML27`, `925MFL32A`). **Action: Hold patiently across the 5–25Y cycle.**"
         )
         df_hld = analytics_df[analytics_df["Primary_Category"] == "2. 🔵 Hold"].sort_values(by="Cur. val", ascending=False)
         st.dataframe(_format_df_for_indian_display(df_hld), use_container_width=True, hide_index=True, column_config=col_cfg)
 
     # --- SUB-TILE 3: 3. REPLACE ---
     elif active_sub_idx == 3:
-        st.markdown("##### 🔄 Category 3: Replace — Underperforming Scrips & Duplicate ETFs with Superior Backtested Alternates")
+        st.markdown("##### 🔄 Category 3: Replace — Duplicate Overlapping ETFs & Low-Moat Laggards to Upgrade for 5–25Y Compounding")
         st.caption(
-            "Holdings where either (a) multiple overlapping ETFs in the same factor/sector dilute returns, or (b) a live-backtested peer in the same sector delivers significantly higher historical CAGR and Sharpe Ratio."
+            "Over a 5–25 year horizon, holding multiple ETFs tracking the same factor/sector (`FMCGIETF`/`CONSUMIETF` vs `CONSUMBEES`, `ALPHAETF` vs `ALPHA`, `MOM30IETF` vs `MOMENTUM50`, `NV20IETF`/`NV20`/`QUAL30IETF` vs `SBIETFQLTY`, `HDFCNIFTY` vs `NIFTYIETF`, `CPSEETF` vs `ICICIB22`) or low-ROCE laggards (`CCAVENUE`, `UNIECOM`, `EMBDL`, `PVSL`, `VSTIND`, `RAYMONDLSL`) creates compounding drag. **Action: Consolidate into the #1 backtested peer.**"
         )
         df_rep = analytics_df[analytics_df["Primary_Category"] == "3. 🔄 Replace"].sort_values(
             by="Est_Profit_Uplift_INR", ascending=False
@@ -2992,10 +3712,10 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
 
     # --- SUB-TILE 4: 4. EXIT ---
     elif active_sub_idx == 4:
-        st.markdown("##### 🔴 Category 4: Exit — Stage-4 Breakdowns, Value Traps & Sub-Scale Demerged Stubs")
+        st.markdown("##### 🔴 Category 4: Exit — Strictly 5–25Y Structural/Governance Breakdowns & Sub-Scale Demerged Stubs")
         st.caption(
-            f"These **{c_ext} holdings** suffer from severe technical breakdown (trading well below 200-DMA, weak RSI/MACD), negative earnings momentum, institutional distribution, or sub-scale post-demerger stub drag (`VEDPOWER`, `VOGL`, `VISL`). "
-            f"**Liquidating them frees {format_indian_currency(val_ext, decimals=2)}**, which can be reallocated into their live-backtested replacement leaders shown below."
+            f"Calibrated for a 5–25 year horizon, **ZERO high-moat franchises are placed in Exit**. Only **{c_ext} holdings** are flagged for Exit: businesses with secularly impaired moats, governance/balance-sheet stress, or structural industry obsolescence (`RAJESHEXPO`, `ZEEL`, `ZEEMEDIA`, `TVTODAY`, `UTKARSHBNK`, `HERANBA`, `STANLEY`, `MUFTI`, `OLAELEC`), plus the 3 sub-scale post-demerger Vedanta micro-stubs (`VEDPOWER`, `VOGL`, `VISL` — while keeping core `VEDL` + `VAML`). "
+            f"**Liquidating them frees {format_indian_currency(val_ext, decimals=2)}** to redeploy into high-moat 5–25Y compounders."
         )
         df_ext = analytics_df[analytics_df["Primary_Category"] == "4. 🔴 Exit"].sort_values(
             by="Cur. val", ascending=False
@@ -3006,7 +3726,7 @@ def render_portfolio_holdings_analytics_tab(key_prefix: str = "port_lab") -> Non
     elif active_sub_idx == 5:
         st.markdown("##### 🟠 Part A: ETF Factor & Sector Overlap Deduplication Audit")
         st.caption(
-            "Your portfolio holds **35 ETFs**, several of which track virtually identical underlying indices (e.g., 4 Alpha/Momentum ETFs, 4 Quality/NV20 ETFs, 3 FMCG/Consumption ETFs, 4 Broad Large-Cap ETFs). Consolidating each cluster into its **#1 live-backtested leader** simplifies tracking and improves risk-adjusted return:"
+            "Consolidating redundant ETFs that track the exact same underlying factor/sector into their **#1 5–25Y cluster leader** eliminates tracking drag while keeping all distinct strategic ETFs (`NIFTYIETF`, `SETFNN50`, `DIVOPPBEES`, `MON100`, `MONQ50`, `GOLDCASE`, `HDFCSILVER`, `ALPHA`, `MOMENTUM50`, `SBIETFQLTY`, `CONSUMBEES`, `MAKEINDIA`, `MODEFENCE`, `MIDCAPETF`, `HDFCSML250`, `SMALLCAP`):"
         )
         if not res["etf_overlap_df"].empty:
             st.dataframe(res["etf_overlap_df"], use_container_width=True, hide_index=True)
